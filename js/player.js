@@ -8,11 +8,36 @@
 class Player {
     constructor(x, y) {
         this.x = x;
-        this.y = y;
+        this.y = y - 24; // Ajuste da posição inicial para compensar a altura maior
         this.width = 40;    // Largura do canhão
-        this.height = 20;   // Altura do canhão
-        this.speed = 5;     // Velocidade de movimentação
-        this.isShooting = false; // Controle para evitar múltiplos tiros simultâneos
+        this.height = 48;   // DOBRADO - era 24 pixels
+        this.speed = 10;    // Velocidade de movimentação
+        this.maxProjectiles = 2;
+        this.shooting = false;
+        this.lives = 2;
+        this.isBlinking = false;
+        this.blinkTimer = 0;
+        this.blinkInterval = 200;
+
+        // Sprite do canhão (16x16) - mantém o mesmo design, mas será esticado verticalmente
+        this.sprite = [
+            0x0000, // 0000000000000000
+            0x0000, // 0000000000000000
+            0x0000, // 0000000000000000
+            0x0000, // 0000000000000000
+            0x0000, // 0000000000000000
+            0x0180, // 0000000110000000
+            0x0180, // 0000000110000000
+            0x0180, // 0000000110000000
+            0x0180, // 0000000110000000
+            0x0FF0, // 0000111111110000
+            0x0FF0, // 0000111111110000
+            0x0FF0, // 0000111111110000
+            0x0FF0, // 0000111111110000
+            0x3FFC, // 0011111111111100
+            0x7FFE, // 0111111111111110
+            0xFFFF  // 1111111111111111
+        ];
     }
 
     moveLeft() {
@@ -27,16 +52,72 @@ class Player {
         if (this.x + this.width > 720) this.x = 720 - this.width;
     }
 
-    shoot() {
-        if (!this.isShooting) {
-            this.isShooting = true;
-            // A lógica para criar e gerenciar um tiro deve ser conectada no game.js
+    shoot(activeProjectilesCount) {
+        // Verificar se já atingimos o limite de tiros simultâneos
+        if (activeProjectilesCount < this.maxProjectiles) {
+            // Cria um novo tiro no centro superior do jogador
+            const projectileX = this.x + (this.width / 2) - 2;
+            const projectileY = this.y; // Dispara da ponta do canhão
+            this.shooting = true;
+            return new Projectile(
+                projectileX, 
+                projectileY, 
+                4,      // largura
+                10,     // altura
+                10,     // velocidade 
+                1,      // direção (1 = para cima)
+                "#0f0"  // cor verde
+            );
+        }
+        return null;
+    }
+
+    resetShot() {
+        this.shooting = false;
+    }
+
+    loseLife() {
+        this.lives--;
+        if (this.lives > 0) {
+            // Se ainda tem vida, começa a piscar
+            this.isBlinking = true;
+        }
+    }
+
+    update(deltaTime) {
+        // Atualiza o efeito de piscar quando na última vida
+        if (this.isBlinking) {
+            this.blinkTimer += deltaTime;
+            if (this.blinkTimer > this.blinkInterval) {
+                this.blinkTimer = 0;
+            }
         }
     }
 
     render(ctx) {
-        ctx.fillStyle = "#00f";  // Usa a cor azul do canhão
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Determina a cor baseada na vida e no estado de piscar
+        if (this.isBlinking && this.blinkTimer < this.blinkInterval / 2) {
+            ctx.fillStyle = "#FF0000"; // Vermelho para última vida
+        } else {
+            ctx.fillStyle = "#00FF00";  // Verde para o canhão (como no original)
+        }
+        
+        // Desenha o sprite do canhão pixel por pixel
+        const pixelSize = this.width / 16;
+        const pixelHeight = this.height / 16; // Altura de cada pixel (agora maior)
+        
+        for (let row = 0; row < 16; row++) {
+            for (let col = 0; col < 16; col++) {
+                if ((this.sprite[row] >> (15 - col)) & 1) {
+                    ctx.fillRect(
+                        this.x + (col * pixelSize),
+                        this.y + (row * pixelHeight), // Usa pixelHeight para esticar verticalmente
+                        pixelSize,
+                        pixelHeight
+                    );
+                }
+            }
+        }
     }
 }
 
