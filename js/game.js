@@ -31,10 +31,14 @@ let gameStarted = false; // Indicador de inicialização
 let gameStartTime = 0; // Tempo de início do jogo
 let reducedGraphics = false; // Variável global para gráficos reduzidos
 
+// Add near global variables:
+let topLineColor = "#333";  // cor padrão agora é #333
+const TOP_LINE_Y = 52;        // 10 px abaixo do header (header: 0 a 42 → 42+10=52)
+const TOP_LINE_HEIGHT = 5;
+
 // Variáveis para pontuação e vidas perdidas
 let score = 0;               // Pontuação atual - começa em 0
 let missedShots = 0;         // Contador de tiros perdidos
-let baseScore = 5500;        // Pontuação base
 let lostLivesCount = 0;      // Contador de vidas perdidas
 
 // Monitor de desempenho
@@ -177,7 +181,7 @@ function init() {
     }
 }
 
-// Nova função para renderizar a tela de início
+// Substitua a função renderStartScreen
 function renderStartScreen() {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -188,9 +192,9 @@ function renderStartScreen() {
     ctx.textAlign = "center";
     ctx.fillText("SPACE INVADERS", canvas.width / 2, canvas.height / 3);
     
-    // Instrução principal
+    // Instrução principal - ALTERADA
     ctx.font = "24px Arial";
-    ctx.fillText("Clique para iniciar", canvas.width / 2, canvas.height / 2);
+    ctx.fillText("ESPAÇO para iniciar", canvas.width / 2, canvas.height / 2);
     
     // Instruções de controle
     ctx.font = "16px Arial";
@@ -199,16 +203,17 @@ function renderStartScreen() {
     ctx.fillText("ESPAÇO : Atirar", canvas.width / 2, instructionsY + 50);
     ctx.fillText("ESC : Pausar o jogo", canvas.width / 2, instructionsY + 75);
     ctx.fillText("M : Ativar/desativar som", canvas.width / 2, instructionsY + 100);
+    ctx.fillText("↑ ↓ : Aumentar/diminuir volume", canvas.width / 2, instructionsY + 125); // Nova instrução
 
     // Adicione uma mensagem sobre o total de invasores
     ctx.font = "18px Arial";
     ctx.fillText("Destrua os 50 invasores!", canvas.width / 2, instructionsY);
 }
 
-// Adicione um event listener de clique para iniciar o jogo
-if (!canvas.hasClickEventListener) {
-    canvas.addEventListener('click', startGame);
-    canvas.hasClickEventListener = true;
+// Remova o event listener de clique e use apenas a tecla espaço
+if (canvas.hasClickEventListener) {
+    canvas.removeEventListener('click', startGame);
+    canvas.hasClickEventListener = false;
 }
 
 // Ajuste na função startGame:
@@ -377,13 +382,8 @@ function update(deltaTime) {
 
         // Atualização dos tiros do jogador
         playerProjectiles.forEach(projectile => {
-            // Salva o estado anterior de ativo
-            const wasActive = projectile.active;
-            
-            // Atualiza a posição do projétil
-            projectile.update();
-            
-            let hitSomething = false; // Flag para acompanhar se o tiro acertou algo
+            projectile.update();    
+            let hitSomething = false; // Flag para detectar se o projétil acertou algo
             
             // Verifica colisões com invasores
             invaders.forEach(invader => {
@@ -392,54 +392,35 @@ function update(deltaTime) {
                     projectile.active = false;
                     player.resetShot();
                     hitSomething = true;
-                    
-                    // ALTERADO: Permite pontuação negativa
                     score = score + 2;
-
-                    // Tocar o som de explosão
-                    if (soundManager) soundManager.playExplosionSound();
-
-                    // Atualiza a velocidade baseada no número de invasores restantes
-                    const remainingInvaders = invaders.filter(inv => inv.alive).length;
-                    const remainingPercentage = remainingInvaders / invaders.length;
-                    if (soundManager) soundManager.updateInvaderSpeed(remainingPercentage);
+                    if (soundManager) soundManager.playInvaderHitSound();
                 }
             });
             
-            // Se ainda estiver ativo, verifica colisões com barreiras
-            if (projectile.active) {
-                // Verifica colisões com tijolos das barreiras
-                barriers.forEach(barrier => {
-                    barrier.bricks.forEach(brick => {
-                        if (brick.health > 0 && projectile.active && isColliding(projectile, brick)) {
-                            brick.takeDamage();
-                            projectile.active = false;
-                            player.resetShot();
-                            hitSomething = true; // Marcamos que acertou algo
-                        }
-                    });
+            // Verifica colisões com barreiras
+            barriers.forEach(barrier => {
+                barrier.bricks.forEach(brick => {
+                    if (brick.health > 0 && projectile.active && isColliding(projectile, brick)) {
+                        brick.takeDamage();
+                        projectile.active = false;
+                        player.resetShot();
+                        hitSomething = true;
+                    }
                 });
-            }
+            });
             
-            // Verifica se o tiro saiu da tela
-            if (projectile.active && projectile.y < 0) {
+            // Se o projétil atingir a área da linha-alvo do topo
+            if (projectile.active && projectile.y < TOP_LINE_Y + TOP_LINE_HEIGHT) {
                 projectile.active = false;
                 player.resetShot();
-                
-                // ALTERADO: Permite pontuação negativa
-                score = score - 1;
+                score = score - 1;       // Desconta 1 ponto
                 missedShots++;
-                console.log("Tiro perdido! Pontuação atual:", score);
-            }
-            
-            // Se o projétil estava ativo antes e agora não está mais, mas não acertou nada
-            // nem saiu pelo topo da tela, significa que ele foi removido por outro motivo
-            // (como limpeza periódica) - este é um tiro perdido
-            if (wasActive && !projectile.active && !hitSomething && projectile.y >= 0) {
-                // ALTERADO: Permite pontuação negativa
-                score = score - 1;
-                missedShots++;
-                console.log("Tiro desperdiçado! Pontuação atual:", score);
+                console.log("Tiro atingiu a linha do topo! -1 ponto. Pontuação: " + score);
+                if (soundManager) {
+                    soundManager.playTopLineHitSound();  // Toca o som específico para a linha de topo
+                }
+                topLineColor = "red";   // Altera a cor da linha para vermelho
+                setTimeout(() => { topLineColor = "#333"; }, 500);
             }
         });
         
@@ -505,6 +486,9 @@ function update(deltaTime) {
 
                     if (player.lives <= 0) {
                         gameOver = true;
+                        if (soundManager) {
+                            soundManager.playGameOverSound();
+                        }
                     }
                 }
             }
@@ -642,6 +626,10 @@ function render() {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
+        // Draw the top boundary line (will be red if a projectile hit recently)
+        ctx.fillStyle = topLineColor;
+        ctx.fillRect(0, TOP_LINE_Y, canvas.width, TOP_LINE_HEIGHT);
+        
         // Modo de gráficos reduzidos quando o desempenho está ruim
         if (reducedGraphics) {
             // Renderiza apenas os elementos essenciais
@@ -736,19 +724,25 @@ function render() {
 // Substituir o event listener keydown atual:
 document.addEventListener("keydown", (e) => {
     try {
+        // Se o jogo não começou e a tecla espaço é pressionada
+        if (!gameStarted && e.key === " ") {
+            startGame();
+            return;
+        }
+        
         if (e.key === "Escape") {
             if (!gameOver && !gameWon) {
                 isPaused = !isPaused;
                 console.log("Estado de pausa:", isPaused ? "PAUSADO" : "JOGANDO");
             }
         } else if (!gameOver && !gameWon && !isPaused) {
-            // Movimento contínuo - inicia o movimento imediatamente
+            // Movimento e tiro...
             if (e.key === "ArrowLeft") {
                 player.movingLeft = true;
             } else if (e.key === "ArrowRight") {
                 player.movingRight = true;
             } else if (e.key === " ") {
-                // Tiro
+                // Tiro...
                 const projectile = player.shoot(playerProjectiles.length);
                 if (projectile) {
                     playerProjectiles.push(projectile);
@@ -756,6 +750,12 @@ document.addEventListener("keydown", (e) => {
                 }
             } else if (e.key === "m" || e.key === "M") {
                 if (soundManager) soundManager.toggleMute();
+            } 
+            // NOVO: Controle de volume
+            else if (e.key === "ArrowUp") {
+                if (soundManager) soundManager.increaseVolume();
+            } else if (e.key === "ArrowDown") {
+                if (soundManager) soundManager.decreaseVolume();
             }
         } else if (e.key === "r" || e.key === "R") {
             resetGame();

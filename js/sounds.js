@@ -20,6 +20,10 @@ class SoundManager {
         // Recursos compartilhados para economizar memória
         this.activeOscillators = 0;
         this.maxOscillators = 5; // Limite máximo de osciladores ao mesmo tempo
+
+        // Volume inicial
+        this.volume = 0.3;
+        this.volumeStep = 0.05; // 5% por ajuste
     }
     
     init() {
@@ -30,7 +34,7 @@ class SoundManager {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.masterGain = this.audioContext.createGain();
-            this.masterGain.gain.value = 0.3;
+            this.masterGain.gain.value = this.volume; // Usar a variável volume em vez do valor fixo
             this.masterGain.connect(this.audioContext.destination);
             
             this.isInitialized = true;
@@ -73,7 +77,36 @@ class SoundManager {
         if (!this.isInitialized) return;
         
         this.isMuted = !this.isMuted;
-        this.masterGain.gain.value = this.isMuted ? 0 : 0.3;
+        this.updateVolume();
+    }
+    
+    // Método para aumentar o volume
+    increaseVolume() {
+        if (!this.isInitialized) return;
+        
+        this.volume = Math.min(1.0, this.volume + this.volumeStep);
+        this.updateVolume();
+        console.log("Volume: " + Math.round(this.volume * 100) + "%");
+    }
+    
+    // Método para diminuir o volume
+    decreaseVolume() {
+        if (!this.isInitialized) return;
+        
+        this.volume = Math.max(0.0, this.volume - this.volumeStep);
+        this.updateVolume();
+        console.log("Volume: " + Math.round(this.volume * 100) + "%");
+    }
+    
+    // Método para atualizar o volume no masterGain
+    updateVolume() {
+        if (this.masterGain) {
+            if (this.isMuted) {
+                this.masterGain.gain.value = 0;
+            } else {
+                this.masterGain.gain.value = this.volume;
+            }
+        }
     }
     
     // Som dos passos dos invasores - SIMPLIFICADO
@@ -207,33 +240,32 @@ class SoundManager {
         }
     }
     
+    // Som para quando o jogador é atingido – efeito dramático com descida de frequência
     playPlayerHitSound() {
         try {
             if (!this.isInitialized || this.isMuted) return;
-            
             if (!this.startAudioNode()) return;
             
             const oscillator = this.audioContext.createOscillator();
             const gain = this.audioContext.createGain();
             
-            oscillator.type = 'sawtooth';
-            oscillator.frequency.value = 150;
+            // Usando "triangle" para um timbre encorpado e expressivo
+            oscillator.type = 'triangle';
+            const currentTime = this.audioContext.currentTime;
+            const duration = 0.5; // duração para o efeito dramático
+            // Inicia em 200 Hz e desce para 50 Hz
+            oscillator.frequency.setValueAtTime(200, currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, currentTime + duration);
             
             oscillator.connect(gain);
             gain.connect(this.masterGain);
             
-            const currentTime = this.audioContext.currentTime;
-            const duration = 0.3;
-            const endTime = currentTime + duration;
-            
-            gain.gain.setValueAtTime(0.2, currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, endTime);
-            
-            oscillator.frequency.setValueAtTime(150, currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(40, endTime);
+            // Cria um envelope com volume moderado que decai para zero
+            gain.gain.setValueAtTime(0.5, currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
             
             oscillator.start(currentTime);
-            oscillator.stop(endTime);
+            oscillator.stop(currentTime + duration);
             
             setTimeout(() => {
                 this.releaseAudioNode();
@@ -284,6 +316,186 @@ class SoundManager {
             }, tones.length * duration * 1000 + 100);
         } catch (e) {
             console.warn("Erro ao tocar som de vitória:", e);
+            this.releaseAudioNode();
+        }
+    }
+    
+    // Método para tocar som de GAME OVER – sequência de vitória invertida
+    playGameOverSound() {
+        try {
+            if (!this.isInitialized || this.isMuted) return;
+            // Zera os osciladores pendentes para garantir a criação de novos
+            this.activeOscillators = 0;
+            if (!this.startAudioNode()) return;
+            
+            // Sequência de vitória original: [261.63, 329.63, 392.00, 523.25]
+            // Para Game Over, usamos a sequência invertida: [523.25, 392.00, 329.63, 261.63]
+            const tones = [523.25, 392.00, 329.63, 261.63];
+            const duration = 0.2; // duração de cada nota
+            let currentTime = this.audioContext.currentTime;
+            
+            tones.forEach((freq, index) => {
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                oscillator.type = 'square'; // timbre clássico
+                oscillator.frequency.value = freq;
+                oscillator.connect(gain);
+                gain.connect(this.masterGain);
+                
+                const toneStart = currentTime + index * duration;
+                const toneEnd = toneStart + duration;
+                
+                gain.gain.setValueAtTime(0, toneStart);
+                gain.gain.linearRampToValueAtTime(0.2, toneStart + 0.01);
+                gain.gain.linearRampToValueAtTime(0.2, toneEnd - 0.05);
+                gain.gain.linearRampToValueAtTime(0, toneEnd);
+                
+                oscillator.start(toneStart);
+                oscillator.stop(toneEnd);
+            });
+            
+            const totalDuration = tones.length * duration;
+            setTimeout(() => {
+                this.releaseAudioNode();
+            }, totalDuration * 1000 + 100);
+        } catch (e) {
+            console.warn("Erro ao tocar som de GAME OVER:", e);
+            this.releaseAudioNode();
+        }
+    }
+
+    // Método atualizado para o som de GAME OVER: reproduz a sequência de vitória em ordem invertida
+    playGameOverSound2() {
+        try {
+            if (!this.isInitialized || this.isMuted) return;
+
+            if (!this.startAudioNode()) return;
+
+            // Sequência ascendente de tons (versão original restaurada)
+            const tones = [523.25, 392.00, 329.63, 261.63 ]; // Notas C, E, G, C (oitava acima)
+            const duration = 0.2;
+
+            // Toca os 4 tons em sequência
+            for (let i = 0; i < tones.length; i++) {
+                const oscillator = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                oscillator.type = 'square';
+                oscillator.frequency.value = tones[i];
+
+                oscillator.connect(gain);
+                gain.connect(this.masterGain);
+
+                const startTime = this.audioContext.currentTime + (i * duration);
+                const endTime = startTime + duration;
+
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+                gain.gain.linearRampToValueAtTime(0.2, endTime - 0.05);
+                gain.gain.linearRampToValueAtTime(0, endTime);
+
+                oscillator.start(startTime);
+                oscillator.stop(endTime);
+            }
+
+            // Libera o recurso após a sequência completa
+            setTimeout(() => {
+                this.releaseAudioNode();
+            }, tones.length * duration * 1000 + 100);
+        } catch (e) {
+            console.warn("Erro ao tocar som de vitória:", e);
+            this.releaseAudioNode();
+        }
+    }
+
+    // Método para tocar uma explosão curta e audível (usado na linha do topo)
+    playShortExplosionSound() {
+        try {
+            if (!this.isInitialized || this.isMuted) return;
+            if (!this.startAudioNode()) return;
+            
+            const oscillator = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.value = 100; // tom um pouco mais baixo
+            oscillator.connect(gain);
+            gain.connect(this.masterGain);
+            
+            const currentTime = this.audioContext.currentTime;
+            const duration = 0.1; // duração de 0.1 segundo
+            gain.gain.setValueAtTime(0.35, currentTime); // ganho inicial maior
+            gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
+            
+            oscillator.start(currentTime);
+            oscillator.stop(currentTime + duration);
+            
+            setTimeout(() => { this.releaseAudioNode(); }, duration * 1000 + 100);
+        } catch (e) {
+            console.warn("Erro ao tocar som de explosão curta:", e);
+            this.releaseAudioNode();
+        }
+    }
+    
+    // Som para quando o tiro atinge a linha de topo
+    playTopLineHitSound() {
+        try {
+            if (!this.isInitialized || this.isMuted) return;
+            if (!this.startAudioNode()) return;
+            
+            const oscillator = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            oscillator.type = 'triangle';  // Timbre distinto
+            oscillator.frequency.value = 300; // Frequência alterada para mais clareza
+            oscillator.connect(gain);
+            gain.connect(this.masterGain);
+            
+            const currentTime = this.audioContext.currentTime;
+            const duration = 0.15; // Duração curta
+            gain.gain.setValueAtTime(0.4, currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
+            
+            oscillator.start(currentTime);
+            oscillator.stop(currentTime + duration);
+            
+            setTimeout(() => {
+                this.releaseAudioNode();
+            }, duration * 1000 + 100);
+        } catch (e) {
+            console.warn("Erro ao tocar som de linha de topo:", e);
+            this.releaseAudioNode();
+        }
+    }
+    
+    // Método atualizado para o som quando um invasor é atingido:
+    // Som mais agudo, seco e explosivo
+    playInvaderHitSound() {
+        try {
+            if (!this.isInitialized || this.isMuted) return;
+            if (!this.startAudioNode()) return;
+            
+            const oscillator = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            oscillator.type = 'square'; // Som curto e agressivo
+            oscillator.frequency.value = 400; // Frequência mais aguda
+            oscillator.connect(gain);
+            gain.connect(this.masterGain);
+            
+            const currentTime = this.audioContext.currentTime;
+            const duration = 0.05; // Duração muito curta para efeito explosivo
+            gain.gain.setValueAtTime(0.8, currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
+            
+            oscillator.start(currentTime);
+            oscillator.stop(currentTime + duration);
+            
+            setTimeout(() => {
+                this.releaseAudioNode();
+            }, duration * 1000 + 100);
+        } catch (e) {
+            console.warn("Erro ao tocar som de invasor atingido:", e);
             this.releaseAudioNode();
         }
     }

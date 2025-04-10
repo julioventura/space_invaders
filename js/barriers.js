@@ -20,7 +20,7 @@ class Brick {
 
     render(ctx) {
         if (this.health > 0) {
-            ctx.fillStyle = "#f00";  // Cor vermelha para os tijolos
+            ctx.fillStyle = "#8B4513"; // brown color
             ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     }
@@ -30,8 +30,8 @@ class Brick {
 class Barrier {
     constructor(x, y) {
         this.bricks = [];
-        // Exemplo: 2 linhas x 5 colunas, totalizando 10 tijolos
-        const rows = 2;
+        // Changed: 3 rows x 5 columns, totalizing 15 bricks per barrier
+        const rows = 3;
         const cols = 5;
         const brickWidth = 15;
         const brickHeight = 10;
