@@ -25,6 +25,7 @@ O projeto é uma réplica simplificada do clássico Space Invaders dos anos 80. 
 │    ├── utils.js       // Funções utilitárias – ex.: detecção de colisões.
 │    ├── player.js      // Define a classe Player – movimentação lateral e disparo.
 │    ├── invader.js     // Define a classe Invader – propriedades e renderização do inimigo.
+│    ├── projectile.js  // Define a classe Projectile que representa os tiros do jogador e dos invasores.
 │    ├── barriers.js    // Define as classes Barrier e Brick – criação, renderização e danos das barreiras.
 │    └── game.js        // Arquivo central – gerencia o game loop, atualização de estados, movimentação dos invasores, inputs e renderização.
 └── assets/
