@@ -54,17 +54,23 @@ let lastFrameTime = 0;
 const TARGET_FPS = 60;
 const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
+// Coloque estas variáveis globais, logo após as demais declarações:
+let starImg = new Image();
+starImg.src = "img/stars.jpg"; // Caminho para a imagem de estrelas
+let starOffset = 0;
+let starSpeed = 0.5; // Velocidade de deslocamento das estrelas
+
 function gameLoop(timestamp) {
     // Limitar a taxa de quadros
     if (timestamp - lastFrameTime < FRAME_INTERVAL) {
         requestAnimationFrame(gameLoop);
         return;
     }
-    
+
     // Calcular tempo delta com limite máximo para evitar saltos enormes
     const deltaTime = Math.min(timestamp - lastFrameTime, 100);
     lastFrameTime = timestamp;
-    
+
     // Renovação periódica do contexto de áudio para evitar vazamentos
     const runningTime = timestamp - gameStartTime;
     if (soundManager && soundManager.audioContext && runningTime > 60000 && runningTime % 60000 < 50) {
@@ -76,7 +82,7 @@ function gameLoop(timestamp) {
             console.warn("Erro ao renovar áudio:", e);
         }
     }
-    
+
     try {
         // Processamento do jogo com proteção contra erros
         if (!isPaused) {
@@ -96,29 +102,29 @@ function gameLoop(timestamp) {
     // Monitor de desempenho
     gamePerformance.frameCount++;
     gamePerformance.frameTime += deltaTime;
-    
+
     // A cada 5 segundos, verificar o desempenho
     if (gamePerformance.frameTime >= 5000) {
         const fps = gamePerformance.frameCount / (gamePerformance.frameTime / 1000);
         console.log("FPS médio:", fps.toFixed(2));
-        
+
         // Se o FPS estiver muito baixo, entrar em modo de recuperação
         if (fps < 30 && !gamePerformance.recoveryMode) {
             console.warn("Desempenho baixo detectado, ativando modo de recuperação");
             gamePerformance.recoveryMode = true;
-            
+
             // Reduzir a carga visual e de processamento
             reducedGraphics = true;
-            
+
             // Forçar limpeza de objetos
             cleanupInactiveObjects();
         }
-        
+
         // Resetar contadores
         gamePerformance.frameCount = 0;
         gamePerformance.frameTime = 0;
     }
-    
+
     // Limpeza periódica de objetos a cada 2 segundos
     if (timestamp - gamePerformance.lastCleanup > 2000) {
         cleanupInactiveObjects();
@@ -137,13 +143,13 @@ function init() {
         // Inicializa o sistema de som
         soundManager = new SoundManager();
         soundManager.init();
-        
+
         // Constante para o tamanho do header
         const headerHeight = 42; // 40px header + 2px borda
-        
+
         // Instancia o jogador com ajuste para o header
-        player = new Player(canvas.width / 2 - 20, canvas.height - 40 + headerHeight/2);
-    
+        player = new Player(canvas.width / 2 - 20, canvas.height - 40 + headerHeight / 2);
+
         // Criação da formação de invasores
         const rows = 5;
         const cols = 10; // Alterado: 10 invasores por linha conforme solicitado
@@ -156,18 +162,18 @@ function init() {
                 invaders.push(new Invader(x, y));
             }
         }
-    
+
         // Criação de 4 barreiras
         const numBarriers = 4;
         for (let i = 0; i < numBarriers; i++) {
             const x = 50 + i * 150;
-            const y = canvas.height - 150 + headerHeight/2;
+            const y = canvas.height - 150 + headerHeight / 2;
             barriers.push(new Barrier(x, y));
         }
-    
+
         // Mostra a tela inicial em vez de começar o jogo diretamente
         renderStartScreen();
-        
+
         // O jogo só começa quando o jogador clicar na tela
         gameStarted = false;
 
@@ -183,31 +189,39 @@ function init() {
 
 // Substitua a função renderStartScreen
 function renderStartScreen() {
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+    // Desenha o fundo animado com as estrelas:
+    // Atualiza o offset para criar o efeito de movimento
+    starOffset += starSpeed;
+    if (starOffset > canvas.height) {
+        starOffset = 0;
+    }
+    // Repete a imagem para preencher toda a tela verticalmente
+    for (let y = -canvas.height; y < canvas.height; y += canvas.height) {
+        ctx.drawImage(starImg, 0, starOffset + y, canvas.width, canvas.height);
+    }
+
+    // Sobrepõe os elementos de texto
     // Título do jogo
     ctx.fillStyle = "#0F0";
     ctx.font = "bold 48px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("SPACE INVADERS", canvas.width / 2, canvas.height / 3);
-    
-    // Instrução principal - ALTERADA
+    ctx.fillText("SPACE INVADERS", canvas.width / 2, canvas.height / 4);
+
+    // Instrução principal
     ctx.font = "24px Arial";
-    ctx.fillText("ESPAÇO para iniciar", canvas.width / 2, canvas.height / 2);
-    
+    ctx.fillText("ESPAÇO para iniciar e atirar", canvas.width / 2, canvas.height / 2.5);
+
     // Instruções de controle
     ctx.font = "16px Arial";
-    const instructionsY = canvas.height * 2/3;
-    ctx.fillText("← → : Mover (setas)", canvas.width / 2, instructionsY + 25);
-    ctx.fillText("ESPAÇO : Atirar", canvas.width / 2, instructionsY + 50);
+    ctx.fillStyle = "white"; // Define a cor branca para o texto
+    const instructionsY = canvas.height * 2.5 / 4;
+    ctx.fillText("← → : Mover (setas)", canvas.width / 2, instructionsY + 0);
+    ctx.fillText("↑ ↓ : Aumentar/diminuir volume", canvas.width / 2, instructionsY + 25);
+    ctx.fillText("M : Ativar/desativar som", canvas.width / 2, instructionsY + 50);
     ctx.fillText("ESC : Pausar o jogo", canvas.width / 2, instructionsY + 75);
-    ctx.fillText("M : Ativar/desativar som", canvas.width / 2, instructionsY + 100);
-    ctx.fillText("↑ ↓ : Aumentar/diminuir volume", canvas.width / 2, instructionsY + 125); // Nova instrução
 
-    // Adicione uma mensagem sobre o total de invasores
-    ctx.font = "18px Arial";
-    ctx.fillText("Destrua os 50 invasores!", canvas.width / 2, instructionsY);
+    // Versão
+    ctx.fillText("Versão 1.0 (10/04/2025)", canvas.width / 2, instructionsY + 150);
 }
 
 // Remova o event listener de clique e use apenas a tecla espaço
@@ -221,21 +235,21 @@ if (canvas.hasClickEventListener) {
 function startGame() {
     try {
         if (gameStarted) return;
-        
+
         gameStarted = true;
         gameStartTime = performance.now();
         lastFrameTime = performance.now();
-        
+
         // Ativa o sistema de som
         if (soundManager) {
             soundManager.activate();
         }
-        
+
         // Reseta o contador de tiros se necessário
         if (player) {
             player.totalShotsFired = 0;
         }
-        
+
         // Inicia o loop de jogo
         requestAnimationFrame(gameLoop);
     } catch (e) {
@@ -273,24 +287,24 @@ function update(deltaTime) {
         if (player.movingRight) { // Usando if separado para permitir cancelamento instantâneo
             player.moveRight();
         }
-        
+
         // Limite o número máximo de projéteis na tela
         if (playerProjectiles.length > 10) {
             // Remover os mais antigos se houver muitos
             playerProjectiles = playerProjectiles.slice(-10);
         }
-        
+
         if (invaderProjectiles.length > 15) {
             // Remover os mais antigos se houver muitos
             invaderProjectiles = invaderProjectiles.slice(-15);
         }
-    
+
         // Atualiza o player (para o efeito de piscar)
         player.update(deltaTime);
-    
+
         // Acumula o tempo decorrido
         moveAccumulator += deltaTime;
-    
+
         // Se passou 500ms (0.5 segundo), executa um movimento de "passo"
         if (moveAccumulator >= moveInterval) {
             moveAccumulator = 0; // Resetar acumulador
@@ -314,7 +328,7 @@ function update(deltaTime) {
             const hitRightBoundary = (rightmost + horizontalStep >= canvas.width);
             const hitLeftBoundary = (leftmost - horizontalStep <= 0);
 
-            if ((invaderDirection > 0 && hitRightBoundary) || 
+            if ((invaderDirection > 0 && hitRightBoundary) ||
                 (invaderDirection < 0 && hitLeftBoundary)) {
                 // Mudar direção
                 invaderDirection *= -1;
@@ -323,27 +337,27 @@ function update(deltaTime) {
                 invaders.forEach(invader => {
                     if (invader.alive) {
                         invader.y += descentStep;
-                        
+
                         // Verificar se chegaram na linha do jogador
                         if (invader.y + invader.height >= player.y) {
                             gameOver = true;
                         }
-                        
+
                         // Alternar frame de animação
                         invader.toggleFrame();
                     }
                 });
-                
+
                 // ADICIONE AQUI: Aumenta a velocidade em 20% (reduz o intervalo para 80% do valor)
                 moveInterval *= 0.8;
-                
+
                 // Limite para velocidade máxima
                 moveInterval = Math.max(moveInterval, 100); // Evita que fique rápido demais
-                
+
                 // Também acelera os tiros dos invasores para acompanhar
                 invaderShootInterval *= 0.9;
                 invaderShootInterval = Math.max(invaderShootInterval, 300);
-                
+
                 // Se o som estiver inicializado, atualiza também a velocidade do som
                 if (soundManager) {
                     soundManager.invaderSoundSpeed *= 1.2; // Aumenta 20% a velocidade do som
@@ -353,7 +367,7 @@ function update(deltaTime) {
                 invaders.forEach(invader => {
                     if (invader.alive) {
                         invader.x += invaderDirection * horizontalStep;
-                        
+
                         // Alternar frame de animação
                         invader.toggleFrame();
                     }
@@ -371,7 +385,7 @@ function update(deltaTime) {
                         if (brick.health > 0 && isColliding(invader, brick)) {
                             // O invasor destroi o tijolo ao colidir
                             brick.takeDamage();
-                            
+
                             // Opcionalmente, podemos diminuir completamente a saúde para destruir o tijolo
                             brick.health = 0;
                         }
@@ -382,9 +396,9 @@ function update(deltaTime) {
 
         // Atualização dos tiros do jogador
         playerProjectiles.forEach(projectile => {
-            projectile.update();    
+            projectile.update();
             let hitSomething = false; // Flag para detectar se o projétil acertou algo
-            
+
             // Verifica colisões com invasores
             invaders.forEach(invader => {
                 if (invader.alive && projectile.active && isColliding(projectile, invader)) {
@@ -396,7 +410,7 @@ function update(deltaTime) {
                     if (soundManager) soundManager.playInvaderHitSound();
                 }
             });
-            
+
             // Verifica colisões com barreiras
             barriers.forEach(barrier => {
                 barrier.bricks.forEach(brick => {
@@ -408,7 +422,7 @@ function update(deltaTime) {
                     }
                 });
             });
-            
+
             // Se o projétil atingir a área da linha-alvo do topo
             if (projectile.active && projectile.y < TOP_LINE_Y + TOP_LINE_HEIGHT) {
                 projectile.active = false;
@@ -423,7 +437,7 @@ function update(deltaTime) {
                 setTimeout(() => { topLineColor = "#333"; }, 500);
             }
         });
-        
+
         // Remover tiros inativos
         playerProjectiles = playerProjectiles.filter(projectile => projectile.active);
 
@@ -434,7 +448,7 @@ function update(deltaTime) {
             // Permite atirar mais projéteis se o limite não foi atingido
             player.resetShot();
         }
-        
+
         // Verificar vitória
         const remainingInvaders = invaders.filter(invader => invader.alive).length;
         if (remainingInvaders === 0 && !gameWon) {
@@ -443,17 +457,17 @@ function update(deltaTime) {
             // Tocar o som de vitória
             if (soundManager) soundManager.playVictorySound();
         }
-        
+
         // OPCIONAL: Tiros dos invasores
         invaderShootTimer += deltaTime;
         if (invaderShootTimer >= invaderShootInterval) {
             invaderShootTimer = 0;
-            
+
             // Escolher um invasor aleatório para atirar
             const livingInvaders = invaders.filter(invader => invader.alive);
             if (livingInvaders.length > 0) {
                 const shooter = livingInvaders[Math.floor(Math.random() * livingInvaders.length)];
-                
+
                 // Criar um novo tiro
                 const projectile = new Projectile(
                     shooter.x + (shooter.width / 2) - 2,
@@ -463,20 +477,20 @@ function update(deltaTime) {
                 invaderProjectiles.push(projectile);
             }
         }
-        
+
         // Atualizar e verificar colisões de tiros dos invasores
         invaderProjectiles.forEach(projectile => {
             projectile.update();
-            
+
             // Colisão com o jogador - dando período de invencibilidade após hit
             if (projectile.active && isColliding(projectile, player)) {
                 // Garante que o jogador não perde vida durante o período de piscar
                 if (!player.blinking) {
                     projectile.active = false;
-                    
+
                     // Agora o jogador perde uma vida em vez de game over imediato
                     player.loseLife();
-                    
+
                     // ALTERADO: Permite pontuação negativa
                     score = score - 10;
                     lostLivesCount++;
@@ -492,7 +506,7 @@ function update(deltaTime) {
                     }
                 }
             }
-            
+
             // Colisão com tijolos
             barriers.forEach(barrier => {
                 barrier.bricks.forEach(brick => {
@@ -503,7 +517,7 @@ function update(deltaTime) {
                 });
             });
         });
-        
+
         // Remover tiros de invasores inativos
         invaderProjectiles = invaderProjectiles.filter(projectile => projectile.active);
 
@@ -531,14 +545,14 @@ function renderHeader() {
     headerGradient.addColorStop(1, "#112244");
     ctx.fillStyle = headerGradient;
     ctx.fillRect(0, 0, canvas.width, 40);
-    
+
     // Borda inferior iluminada
     const borderGradient = ctx.createLinearGradient(0, 40, 0, 42);
     borderGradient.addColorStop(0, "#0F0");
     borderGradient.addColorStop(1, "#00FF88");
     ctx.fillStyle = borderGradient;
     ctx.fillRect(0, 40, canvas.width, 2);
-    
+
     // Efeito de brilho no header - pequenos pontos luminosos
     for (let i = 0; i < 20; i++) {
         const x = Math.random() * canvas.width;
@@ -547,41 +561,41 @@ function renderHeader() {
         ctx.fillStyle = "rgba(0, 255, 255, 0.7)";
         ctx.fillRect(x, y, size, size);
     }
-    
+
     // Informações no header com efeitos visuais
     // Lado esquerdo - Ícones de vida com efeito de brilho
     ctx.textAlign = "left";
-    
+
     // Desenha os canhões representando as vidas com efeito de brilho
     const lifeIconWidth = 15;
     const lifeIconSpacing = 5;
     const startX = 20;
-    
+
     for (let i = 0; i < player.lives; i++) {
         const iconX = startX + (i * (lifeIconWidth + lifeIconSpacing));
-        
+
         // Efeito de brilho ao redor do ícone de vida
         ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
         ctx.fillRect(iconX - 2, 8, lifeIconWidth + 4, 15);
-        
+
         // Base retangular
         ctx.fillStyle = "#0F8";
         ctx.fillRect(iconX, 15, lifeIconWidth, 10);
-        
+
         // Canhão retangular no centro
         ctx.fillRect(iconX + (lifeIconWidth / 2) - 2, 10, 4, 5);
     }
-    
+
     // Contador de tiros com efeito 3D
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 18px Arial";
     const shotText = `Tiros: ${player.totalShotsFired}`;
     ctx.fillText(shotText, 110, 25);
-    
+
     // Sombra sutil para efeito 3D
     ctx.fillStyle = "rgba(0, 128, 255, 0.5)";
     ctx.fillText(shotText, 111, 26);
-    
+
     // Centro - Pontuação atual
     ctx.textAlign = "center";
     ctx.font = "bold 22px Arial";
@@ -594,27 +608,27 @@ function renderHeader() {
     // Efeito de reflexo
     ctx.fillStyle = "rgba(255, 165, 0, 0.3)";
     ctx.fillText(`PONTUAÇÃO: ${score}`, canvas.width / 2, 27);
-    
+
     // Lado direito - Contador de invasores com ícone
     ctx.textAlign = "right";
     ctx.font = "bold 18px Arial";
     const totalInvaders = invaders.length;
     const killedInvaders = invaders.filter(invader => !invader.alive).length;
     const totalInvadersText = `${killedInvaders} / ${totalInvaders}`;
-    
+
     // Gradiente para o texto de contador
     const textGradient = ctx.createLinearGradient(
-        canvas.width - 100, 15, 
+        canvas.width - 100, 15,
         canvas.width - 20, 25
     );
     textGradient.addColorStop(0, "#FF3");
     textGradient.addColorStop(1, "#F60");
     ctx.fillStyle = textGradient;
-    
+
     // Desenha um pequeno invasor como ícone
     ctx.fillRect(canvas.width - 105, 15, 10, 5);
     ctx.fillRect(canvas.width - 108, 20, 16, 5);
-    
+
     // Texto do contador
     ctx.fillText(totalInvadersText, canvas.width - 20, 25);
 }
@@ -625,17 +639,17 @@ function render() {
         // Limpa o canvas (fundo preto)
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         // Draw the top boundary line (will be red if a projectile hit recently)
         ctx.fillStyle = topLineColor;
         ctx.fillRect(0, TOP_LINE_Y, canvas.width, TOP_LINE_HEIGHT);
-        
+
         // Modo de gráficos reduzidos quando o desempenho está ruim
         if (reducedGraphics) {
             // Renderiza apenas os elementos essenciais
             // Jogador
             player.render(ctx);
-            
+
             // Invasores (versão simplificada)
             invaders.forEach(invader => {
                 if (invader.alive) {
@@ -643,7 +657,7 @@ function render() {
                     ctx.fillRect(invader.x, invader.y, invader.width, invader.height);
                 }
             });
-            
+
             // Projéteis (simplificados)
             playerProjectiles.forEach(projectile => {
                 if (projectile.active) {
@@ -651,7 +665,7 @@ function render() {
                     ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
                 }
             });
-            
+
             invaderProjectiles.forEach(projectile => {
                 if (projectile.active) {
                     ctx.fillStyle = "#F00";
@@ -668,51 +682,77 @@ function render() {
 
             // Renderiza as barreiras
             barriers.forEach(barrier => barrier.render(ctx));
-            
+
             // Renderiza os tiros do jogador
             playerProjectiles.forEach(projectile => projectile.render(ctx));
-            
+
             // Renderiza os tiros dos invasores
             invaderProjectiles.forEach(projectile => projectile.render(ctx));
         }
-        
+
         // Substituir a parte do header
         renderHeader();
-        
+
         // Mostrar mensagem de pausa quando o jogo estiver pausado
         if (isPaused) {
             // Cria um fundo semi-transparente para a mensagem
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(0, canvas.height/2 - 50, canvas.width, 100);
-            
+            ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 100);
+
             ctx.fillStyle = "#fff";
             ctx.font = "36px Arial";
             ctx.textAlign = "center";
             ctx.fillText("JOGO PAUSADO", canvas.width / 2, canvas.height / 2);
-            
+
             ctx.font = "24px Arial";
             ctx.fillText("Pressione ESC para continuar", canvas.width / 2, canvas.height / 2 + 40);
         }
-        
+
         // Se o jogo acabou, mostre as mensagens POR CIMA dos elementos
         if (gameOver || gameWon) {
-            // Cria um fundo semi-transparente para a mensagem ser legível
+            // Esmaecer a tela inteira
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(0, canvas.height/2 - 50, canvas.width, 120);
-            
-            // Mostrar mensagem de fim de jogo
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Fundo semi-transparente para facilitar a leitura
+            // ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            // ctx.fillRect(0, canvas.height/2 - 50, canvas.width, 230);
+
+            // Mensagem principal
             ctx.fillStyle = "#fff";
             ctx.font = "36px Arial";
             ctx.textAlign = "center";
-            
+
             if (gameWon) {
-                ctx.fillText("VOCÊ VENCEU!", canvas.width / 2, canvas.height / 2);
+                ctx.fillText("VOCÊ VENCEU!", canvas.width / 2, canvas.height / 4);
             } else {
-                ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
+                ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 4);
             }
-            
+
+            // Cálculo dos valores: 
+            // Eliminados: número de invasores mortos
+            const eliminated = invaders.filter(invader => !invader.alive).length;
+            const pointsEliminated = eliminated * 2;
+            // Para tiros errados: cada tiro errado perde 1 pontos
+            const pointsMissed = missedShots * 1;
+            // Para vidas perdidas: cada vida perdida perde 10 pontos
+            const pointsLost = lostLivesCount * 10;
+            const totalPoints = pointsEliminated - pointsMissed - pointsLost;
+
+            // Define fonte menor e usa a cor laranja igual à do header
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "orange";
+
+            // Exibe cada linha, totalizando os valores de cada item:
+            ctx.fillText("Eliminados: " + eliminated + " (vale 2 pontos = " + pointsEliminated + ")", canvas.width / 2, canvas.height / 2 + 40);
+            ctx.fillText("Tiros errados: " + missedShots + " (perde 1 ponto cada = " + (-pointsMissed) + ")", canvas.width / 2, canvas.height / 2 + 70);
+            ctx.fillText("Vidas perdidas: " + lostLivesCount + " (perde 10 pontos cada = " + (-pointsLost) + ")", canvas.width / 2, canvas.height / 2 + 100);
+            ctx.fillText("PONTOS TOTAIS: " + totalPoints, canvas.width / 2, canvas.height / 2 + 130);
+
+            // Mensagem para reiniciar o jogo, 50px abaixo do relatório
             ctx.font = "24px Arial";
-            ctx.fillText("Pressione R para reiniciar", canvas.width / 2, canvas.height / 2 + 50);
+            ctx.fillStyle = "#fff";
+            ctx.fillText("Pressione R para reiniciar", canvas.width / 2, canvas.height / 2 + 180);
         }
     } catch (e) {
         console.error("Erro na renderização:", e);
@@ -729,7 +769,7 @@ document.addEventListener("keydown", (e) => {
             startGame();
             return;
         }
-        
+
         if (e.key === "Escape") {
             if (!gameOver && !gameWon) {
                 isPaused = !isPaused;
@@ -750,7 +790,7 @@ document.addEventListener("keydown", (e) => {
                 }
             } else if (e.key === "m" || e.key === "M") {
                 if (soundManager) soundManager.toggleMute();
-            } 
+            }
             // NOVO: Controle de volume
             else if (e.key === "ArrowUp") {
                 if (soundManager) soundManager.increaseVolume();
@@ -786,7 +826,7 @@ function resetGame() {
     try {
         moveInterval = 500;
         invaderShootInterval = 750;
-        
+
         player = null;
         invaders = [];
         barriers = [];
@@ -796,12 +836,12 @@ function resetGame() {
         gameWon = false;
         invaderDirection = 1;
         moveAccumulator = 0;
-        
+
         // Reset das variáveis de pontuação
         score = 0;               // Pontuação inicial zerada
         lostLivesCount = 0;      // Reset contador de vidas perdidas
         missedShots = 0;         // Reset contador de tiros perdidos
-        
+
         init(); // Reinicia o jogo e mostra tela inicial
 
         // Redefine as variáveis de desempenho
@@ -814,7 +854,7 @@ function resetGame() {
 
         // Mostra a tela inicial novamente
         renderStartScreen();
-        
+
         // Garante que o jogador tenha as configurações corretas
         if (player) {
             player.lives = 3;
@@ -834,7 +874,7 @@ function cleanupInactiveObjects() {
         // Limpa tiros inativos para economizar memória
         playerProjectiles = playerProjectiles.filter(p => p.active);
         invaderProjectiles = invaderProjectiles.filter(p => p.active);
-        
+
         // Limpa invasores mortos se houver muitos (opcional)
         if (invaders.length > 100) { // Se por algum motivo tivermos muitos
             invaders = invaders.filter(i => i.alive);
