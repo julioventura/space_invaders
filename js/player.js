@@ -8,63 +8,69 @@
 class Player {
     constructor(x, y) {
         this.x = x;
-        this.y = y - 24; // Ajuste da posição inicial para compensar a altura maior
-        this.width = 40;    // Largura do canhão
-        this.height = 48;   // DOBRADO - era 24 pixels
-        this.speed = 10;    // Velocidade de movimentação
-        this.lives = 2;
-        this.isBlinking = false;
+        this.y = y;
+        this.width = 40;
+        this.height = 20;
+        this.speed = 8; // DOBRADO de 4 para 8 pixels por frame
+        this.shooting = false;
+        this.lives = 3;
+        this.maxProjectiles = 3;
+        this.totalShotsFired = 0;
+        
+        // Para efeito de piscar quando danificado
+        this.blinking = false;
         this.blinkTimer = 0;
         this.blinkInterval = 200;
-        this.shooting = false;
+        this.blinkDuration = 0;
+        this.visible = true;
+        this.hitRecently = false;
         
-        // O número máximo de tiros é igual ao número de vidas
-        this.maxProjectiles = this.lives;
-
-        // Sprite do canhão (16x16) - mantém o mesmo design, mas será esticado verticalmente
-        this.sprite = [
-            0x0000, // 0000000000000000
-            0x0000, // 0000000000000000
-            0x0000, // 0000000000000000
-            0x0000, // 0000000000000000
-            0x0000, // 0000000000000000
-            0x0180, // 0000000110000000
-            0x0180, // 0000000110000000
-            0x0180, // 0000000110000000
-            0x0180, // 0000000110000000
-            0x0FF0, // 0000111111110000
-            0x0FF0, // 0000111111110000
-            0x0FF0, // 0000111111110000
-            0x0FF0, // 0000111111110000
-            0x3FFC, // 0011111111111100
-            0x7FFE, // 0111111111111110
-            0xFFFF  // 1111111111111111
-        ];
+        // Controle de movimento contínuo
+        this.movingLeft = false;
+        this.movingRight = false;
     }
-
+    
+    update(deltaTime) {
+        // Atualiza o efeito de piscar
+        if (this.blinking) {
+            this.blinkTimer += deltaTime;
+            
+            if (this.blinkTimer >= this.blinkInterval) {
+                this.blinkTimer = 0;
+                this.visible = !this.visible;
+            }
+            
+            // Termina o efeito após a duração definida
+            this.blinkDuration -= deltaTime;
+            if (this.blinkDuration <= 0) {
+                this.blinking = false;
+                this.visible = true;
+            }
+        }
+    }
+    
     moveLeft() {
-        this.x -= this.speed;
-        // Impedir que saia da tela (ajuste conforme tamanho do canvas)
-        if (this.x < 0) this.x = 0;
+        this.x = Math.max(0, this.x - this.speed);
     }
-
+    
     moveRight() {
-        this.x += this.speed;
-        // Impedir que ultrapasse o limite do canvas
-        if (this.x + this.width > 720) this.x = 720 - this.width;
+        this.x = Math.min(canvas.width - this.width, this.x + this.speed);
     }
-
+    
     shoot(activeProjectilesCount) {
-        // Verificar se já atingimos o limite de tiros simultâneos
-        if (activeProjectilesCount < this.maxProjectiles) {
-            // Cria um novo tiro no centro superior do jogador
-            const projectileX = this.x + (this.width / 2) - 2;
-            const projectileY = this.y; // Dispara da ponta do canhão
+        // Verifica se o jogador pode atirar e se não ultrapassou o número máximo de tiros
+        if (!this.shooting && activeProjectilesCount < this.maxProjectiles) {
             this.shooting = true;
+            this.totalShotsFired++; // Incrementa o contador de tiros
+            
+            // Calcula a posição inicial do tiro (centro do canhão do jogador)
+            const projectileX = this.x + (this.width / 2) - 2;
+            const projectileY = this.y - 5;
+            
             return new Projectile(
                 projectileX, 
                 projectileY, 
-                4,      // largura
+                4,                
                 10,     // altura
                 10,     // velocidade 
                 1,      // direção (1 = para cima)
@@ -73,57 +79,63 @@ class Player {
         }
         return null;
     }
-
+    
     resetShot() {
         this.shooting = false;
     }
-
+    
     loseLife() {
         this.lives--;
         
         // Atualiza o número máximo de tiros com base nas vidas restantes
-        this.maxProjectiles = this.lives; // Com 1 vida, só pode ter 1 tiro
+        this.maxProjectiles = this.lives > 0 ? this.lives : 1; // Garantir pelo menos 1 tiro
         
-        if (this.lives > 0) {
-            // Se ainda tem vida, começa a piscar
-            this.isBlinking = true;
-        }
+        // Ativa o efeito de piscar
+        this.blinking = true;
+        this.blinkTimer = 0;
+        this.blinkDuration = 3000; // Pisca por 3 segundos
+        this.visible = false;
+        this.hitRecently = true;
+        
+        return this.lives > 0;
     }
-
-    update(deltaTime) {
-        // Atualiza o efeito de piscar quando na última vida
-        if (this.isBlinking) {
-            this.blinkTimer += deltaTime;
-            if (this.blinkTimer > this.blinkInterval) {
-                this.blinkTimer = 0;
-            }
-        }
-    }
-
+    
     render(ctx) {
-        // Determina a cor baseada na vida e no estado de piscar
-        if (this.isBlinking && this.blinkTimer < this.blinkInterval / 2) {
-            ctx.fillStyle = "#FF0000"; // Vermelho para última vida
+        // Se estiver piscando e não estiver visível, não renderiza
+        if (this.blinking && !this.visible) return;
+        
+        // Define a cor do canhão baseado nas vidas restantes
+        let baseColor;
+        if (this.lives === 1) {
+            // Com 1 vida, o canhão fica vermelho
+            baseColor = "#f00";
         } else {
-            ctx.fillStyle = "#00FF00";  // Verde para o canhão (como no original)
+            // Com 2 ou 3 vidas, o canhão é verde
+            baseColor = "#0f0";
         }
         
-        // Desenha o sprite do canhão pixel por pixel
-        const pixelSize = this.width / 16;
-        const pixelHeight = this.height / 16; // Altura de cada pixel (agora maior)
+        // Base principal (retangular)
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
         
-        for (let row = 0; row < 16; row++) {
-            for (let col = 0; col < 16; col++) {
-                if ((this.sprite[row] >> (15 - col)) & 1) {
-                    ctx.fillRect(
-                        this.x + (col * pixelSize),
-                        this.y + (row * pixelHeight), // Usa pixelHeight para esticar verticalmente
-                        pixelSize,
-                        pixelHeight
-                    );
-                }
-            }
-        }
+        // Canhão no formato retangular (como nas miniaturas)
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(this.x + (this.width / 2) - 5, this.y - 10, 10, 10);
+        
+        // Detalhes da base (painéis laterais)
+        const panelWidth = 10;
+        const panelHeight = 5;
+        
+        // Painel esquerdo
+        ctx.fillStyle = "#333";
+        ctx.fillRect(this.x + 5, this.y + 5, panelWidth, panelHeight);
+        
+        // Painel direito
+        ctx.fillRect(this.x + this.width - panelWidth - 5, this.y + 5, panelWidth, panelHeight);
+        
+        // Efeito de brilho na base do canhão
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(this.x + this.width / 2 - 2, this.y - 2, 4, 2);
     }
 }
 
