@@ -1,0 +1,28 @@
+<!-- 
+  index.html
+  - Define a estrutura base da página.
+  - Inclui o elemento <canvas> para renderizar o jogo.
+  - Carrega os arquivos CSS e JavaScript (na ordem correta de dependência).
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Space Invaders Clone</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <canvas id="gameCanvas" width="720" height="600"></canvas>
+
+    <!-- Inclusão dos arquivos JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/invader.js"></script>
+    <script src="js/barriers.js"></script>
+    <script src="js/game.js"></script>
+</body>
+
+</html>

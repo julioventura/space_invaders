@@ -1,0 +1,23 @@
+@charset "UTF-8";
+/* 
+  style.scss
+  - Define os estilos do jogo utilizando recursos do SCSS, como variáveis e aninhamento.
+  - Estiliza o body, o canvas e outros elementos que possam ser adicionados (ex.: menus ou mensagens).
+*/
+/* Variáveis para manter a consistência visual */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+canvas {
+  border: 1px solid #fff;
+  display: block;
+}
+
+/*# sourceMappingURL=style.css.map */

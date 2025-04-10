@@ -1,0 +1,26 @@
+/* 
+  style.scss
+  - Define os estilos do jogo utilizando recursos do SCSS, como variáveis e aninhamento.
+  - Estiliza o body, o canvas e outros elementos que possam ser adicionados (ex.: menus ou mensagens).
+*/
+
+/* Variáveis para manter a consistência visual */
+$bg-color: #000; // Cor de fundo: preto
+$player-color: #00f; // Canhão do jogador: azul claro
+$invader-color: #fff; // Invasores (pode ser substituído por sprites)
+$brick-color: #f00; // Tijolos das barreiras: vermelho
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: $bg-color;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+canvas {
+    border: 1px solid #fff;
+    display: block;
+}
