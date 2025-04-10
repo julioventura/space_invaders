@@ -356,6 +356,25 @@ function update(deltaTime) {
             }
         }
 
+        // Verificar se invasores colidiram com barreiras após o movimento
+        invaders.forEach(invader => {
+            if (invader.alive) {
+                // Para cada barreira
+                barriers.forEach(barrier => {
+                    // Para cada tijolo na barreira
+                    barrier.bricks.forEach(brick => {
+                        if (brick.health > 0 && isColliding(invader, brick)) {
+                            // O invasor destroi o tijolo ao colidir
+                            brick.takeDamage();
+                            
+                            // Opcionalmente, podemos diminuir completamente a saúde para destruir o tijolo
+                            brick.health = 0;
+                        }
+                    });
+                });
+            }
+        });
+
         // Atualização dos tiros do jogador
         playerProjectiles.forEach(projectile => {
             // Salva o estado anterior de ativo
@@ -372,10 +391,10 @@ function update(deltaTime) {
                     invader.alive = false;
                     projectile.active = false;
                     player.resetShot();
-                    hitSomething = true; // Marcamos que acertou algo
+                    hitSomething = true;
                     
-                    // Adiciona 2 pontos por invasor destruído
-                    score = Math.max(0, score + 2);
+                    // ALTERADO: Permite pontuação negativa
+                    score = score + 2;
 
                     // Tocar o som de explosão
                     if (soundManager) soundManager.playExplosionSound();
@@ -407,8 +426,8 @@ function update(deltaTime) {
                 projectile.active = false;
                 player.resetShot();
                 
-                // Subtrair 1 ponto por tiro perdido
-                score = Math.max(0, score - 1);
+                // ALTERADO: Permite pontuação negativa
+                score = score - 1;
                 missedShots++;
                 console.log("Tiro perdido! Pontuação atual:", score);
             }
@@ -417,8 +436,8 @@ function update(deltaTime) {
             // nem saiu pelo topo da tela, significa que ele foi removido por outro motivo
             // (como limpeza periódica) - este é um tiro perdido
             if (wasActive && !projectile.active && !hitSomething && projectile.y >= 0) {
-                // Subtrair 1 ponto por tiro perdido
-                score = Math.max(0, score - 1);
+                // ALTERADO: Permite pontuação negativa
+                score = score - 1;
                 missedShots++;
                 console.log("Tiro desperdiçado! Pontuação atual:", score);
             }
@@ -477,8 +496,8 @@ function update(deltaTime) {
                     // Agora o jogador perde uma vida em vez de game over imediato
                     player.loseLife();
                     
-                    // NOVO: Subtrai 10 pontos por vida perdida
-                    score = Math.max(0, score - 10);
+                    // ALTERADO: Permite pontuação negativa
+                    score = score - 10;
                     lostLivesCount++;
 
                     // Tocar o som de jogador atingido
