@@ -209,19 +209,74 @@ function renderStartScreen() {
 
     // Instrução principal
     ctx.font = "24px Arial";
-    ctx.fillText("ESPAÇO para iniciar e atirar", canvas.width / 2, canvas.height / 2.5);
+    ctx.fillText("Tecle ESPAÇO para iniciar e atirar", canvas.width / 2, canvas.height / 2.5);
 
-    // Instruções de controle
+    // Instruções de controle em tabela organizada
     ctx.font = "16px Arial";
-    ctx.fillStyle = "white"; // Define a cor branca para o texto
-    const instructionsY = canvas.height * 2.5 / 4;
-    ctx.fillText("← → : Mover (setas)", canvas.width / 2, instructionsY + 0);
-    ctx.fillText("↑ ↓ : Aumentar/diminuir volume", canvas.width / 2, instructionsY + 25);
-    ctx.fillText("M : Ativar/desativar som", canvas.width / 2, instructionsY + 50);
-    ctx.fillText("ESC : Pausar o jogo", canvas.width / 2, instructionsY + 75);
+    ctx.fillStyle = "#00FF00"; // Verde fósforo para as instruções
+    const instructionsY = canvas.height * 2 / 4;
 
-    // Versão
-    ctx.fillText("Versão 1.0 (10/04/2025)", canvas.width / 2, instructionsY + 150);
+    // Desenha tabela sem bordas
+    const rows = [
+        ["←  →", "Mover a nave"],
+        ["ESPAÇO", "Atirar"],
+        ["↑  ↓", "Volume +/-"],
+        ["M", "Ligar/Desligar som"],
+        ["ESC", "Pausar o jogo"],
+        ["R", "Reiniciar o jogo"],
+        ["DEL", "Zerar os recordes"]
+    ];
+
+    // Layout e estilo da tabela
+    const colWidth1 = 110; 
+    const colWidth2 = 170; 
+    const totalWidth = colWidth1 + colWidth2;
+    const rowHeight = 25;
+    const tableX = canvas.width / 2 - totalWidth / 2;
+    const padding = 6;    
+
+    // Adiciona um fundo semi-transparente para a tabela
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(
+        tableX - padding, 
+        instructionsY - padding, 
+        totalWidth + padding * 2, 
+        rows.length * rowHeight + padding * 2
+    );
+
+    // Desenha borda sutil ao redor da tabela
+    ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+        tableX - padding, 
+        instructionsY - padding, 
+        totalWidth + padding * 2, 
+        rows.length * rowHeight + padding * 2
+    );
+
+    // Desenha as linhas da tabela
+    ctx.textAlign = "left";
+    ctx.font = "bold 16px Arial";
+
+    // Conteúdo
+    ctx.fillStyle = "#00FF00"; // Verde fósforo para o conteúdo
+    ctx.font = "16px Arial";
+    rows.forEach((row, i) => {
+        // Adiciona um efeito de pulsação nas teclas
+        const pulseValue = (Math.sin(Date.now() * 0.002 + i * 0.5) + 1) * 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulseValue * 0.3})`;
+        ctx.fillText(row[0], tableX + padding, instructionsY + ((i + 1) * rowHeight));
+        
+        // Texto de ação em verde constante
+        ctx.fillStyle = "#00FF00";
+        ctx.fillText(row[1], tableX + colWidth1 + padding, instructionsY + ((i + 1) * rowHeight));
+    });
+
+    // Versão do jogo no rodapé
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Versão 1.0 (10/04/2025)", canvas.width / 2, canvas.height - 20);
 }
 
 // Remova o event listener de clique e use apenas a tecla espaço
@@ -710,49 +765,28 @@ function render() {
 
         // Se o jogo acabou, mostre as mensagens POR CIMA dos elementos
         if (gameOver || gameWon) {
-            // Esmaecer a tela inteira
+            // Esmaece toda a tela para exibir as mensagens (fundo opaco)
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Fundo semi-transparente para facilitar a leitura
-            // ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            // ctx.fillRect(0, canvas.height/2 - 50, canvas.width, 230);
-
-            // Mensagem principal
+            // Mensagem principal (GAME OVER ou VOCÊ VENCEU!)
             ctx.fillStyle = "#fff";
             ctx.font = "36px Arial";
             ctx.textAlign = "center";
-
             if (gameWon) {
                 ctx.fillText("VOCÊ VENCEU!", canvas.width / 2, canvas.height / 4);
             } else {
                 ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 4);
             }
 
-            // Cálculo dos valores: 
-            // Eliminados: número de invasores mortos
-            const eliminated = invaders.filter(invader => !invader.alive).length;
-            const pointsEliminated = eliminated * 2;
-            // Para tiros errados: cada tiro errado perde 1 pontos
-            const pointsMissed = missedShots * 1;
-            // Para vidas perdidas: cada vida perdida perde 10 pontos
-            const pointsLost = lostLivesCount * 10;
-            const totalPoints = pointsEliminated - pointsMissed - pointsLost;
+            // Verifica os recordes e atualiza o relatório final (agora com as duas colunas)
+            // CHAMADO APENAS UMA VEZ AQUI
+            checkHighScores();
 
-            // Define fonte menor e usa a cor laranja igual à do header
-            ctx.font = "20px Arial";
-            ctx.fillStyle = "orange";
-
-            // Exibe cada linha, totalizando os valores de cada item:
-            ctx.fillText("Eliminados: " + eliminated + " (vale 2 pontos = " + pointsEliminated + ")", canvas.width / 2, canvas.height / 2 + 40);
-            ctx.fillText("Tiros errados: " + missedShots + " (perde 1 ponto cada = " + (-pointsMissed) + ")", canvas.width / 2, canvas.height / 2 + 70);
-            ctx.fillText("Vidas perdidas: " + lostLivesCount + " (perde 10 pontos cada = " + (-pointsLost) + ")", canvas.width / 2, canvas.height / 2 + 100);
-            ctx.fillText("PONTOS TOTAIS: " + totalPoints, canvas.width / 2, canvas.height / 2 + 130);
-
-            // Mensagem para reiniciar o jogo, 50px abaixo do relatório
+            // Mensagem para reiniciar o jogo
             ctx.font = "24px Arial";
             ctx.fillStyle = "#fff";
-            ctx.fillText("Pressione R para reiniciar", canvas.width / 2, canvas.height / 2 + 180);
+            ctx.fillText("Pressione R para reiniciar", canvas.width / 2, canvas.height - 80);
         }
     } catch (e) {
         console.error("Erro na renderização:", e);
@@ -764,41 +798,59 @@ function render() {
 // Substituir o event listener keydown atual:
 document.addEventListener("keydown", (e) => {
     try {
-        // Se o jogo não começou e a tecla espaço é pressionada
+        // Se o jogo não começou e a tecla espaço é pressionada, inicia
         if (!gameStarted && e.key === " ") {
+            e.preventDefault();
             startGame();
             return;
         }
-
         if (e.key === "Escape") {
             if (!gameOver && !gameWon) {
                 isPaused = !isPaused;
-                console.log("Estado de pausa:", isPaused ? "PAUSADO" : "JOGANDO");
+            }
+        } else if (e.key === "r" || e.key === "R") {
+            // Se estiver em jogo, opcionalmente peça confirmação antes de reiniciar
+            if (gameStarted && !gameOver && !gameWon) {
+                if (!confirm("Deseja mesmo reiniciar o jogo?")) {
+                    return;
+                }
+            }
+            resetGame();
+            const tableDiv = document.getElementById("highscore-table");
+            if (tableDiv) {
+                tableDiv.innerHTML = "";
+            }
+        } else if (e.key === "m" || e.key === "M") {
+            // Tecla M para ativar/desativar o som
+            if (soundManager) {
+                soundManager.toggleMute();
+            }
+        } else if (e.key === "ArrowUp") {
+            // Tecla Seta para Cima para aumentar o volume
+            if (soundManager) {
+                soundManager.increaseVolume();
+            }
+        } else if (e.key === "ArrowDown") {
+            // Tecla Seta para Baixo para diminuir o volume
+            if (soundManager) {
+                soundManager.decreaseVolume();
+            }
+        } else if (e.key === "Delete") {
+            if (confirm("Tem certeza que deseja zerar todos os recordes?")) {
+                clearHighScores();
             }
         } else if (!gameOver && !gameWon && !isPaused) {
-            // Movimento e tiro...
             if (e.key === "ArrowLeft") {
                 player.movingLeft = true;
             } else if (e.key === "ArrowRight") {
                 player.movingRight = true;
             } else if (e.key === " ") {
-                // Tiro...
-                const projectile = player.shoot(playerProjectiles.length);
-                if (projectile) {
-                    playerProjectiles.push(projectile);
-                    if (soundManager) soundManager.playShootSound();
+                e.preventDefault();
+                // Chama o tiro apenas se a função estiver definida
+                if (player && typeof player.shoot === "function") {
+                    player.shoot();
                 }
-            } else if (e.key === "m" || e.key === "M") {
-                if (soundManager) soundManager.toggleMute();
             }
-            // NOVO: Controle de volume
-            else if (e.key === "ArrowUp") {
-                if (soundManager) soundManager.increaseVolume();
-            } else if (e.key === "ArrowDown") {
-                if (soundManager) soundManager.decreaseVolume();
-            }
-        } else if (e.key === "r" || e.key === "R") {
-            resetGame();
         }
     } catch (e) {
         console.error("Erro ao processar entrada do teclado:", e);
@@ -884,6 +936,226 @@ function cleanupInactiveObjects() {
         // Abordagem mais radical para recuperação
         playerProjectiles = [];
         invaderProjectiles = [];
+    }
+}
+
+// Função robusta para verificar e atualizar os recordes
+function checkHighScores() {
+    try {
+        // Obtém os recordes salvos ou inicializa como array vazio
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        
+        // Se houver menos de 5 recordes (ALTERADO DE 3 PARA 5) ou se o score atual for maior que o menor dos recordes existentes
+        if (highScores.length < 5 || score > highScores[highScores.length - 1].score) {
+            let playerName = prompt("Novo recorde! Insira seu nome:");
+            if (!playerName) {
+                playerName = "Anônimo";
+            }
+            
+            const now = new Date().toLocaleDateString();
+
+            // Adiciona o novo recorde
+            highScores.push({ name: playerName, score: score, date: now });
+            
+            // Ordena os recordes em ordem decrescente (maior score primeiro)
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // Mantém somente os 5 melhores recordes (ALTERADO DE 3 PARA 5)
+            highScores = highScores.slice(0, 5);
+            
+            // Salva os recordes atualizados no localStorage
+            localStorage.setItem("highScores", JSON.stringify(highScores));
+        }
+        
+        // Atualiza a exibição dos recordes
+        updateFinalReport();
+    } catch (e) {
+        console.error("Erro ao atualizar recordes:", e);
+    }
+}
+
+// Função para atualizar a tabela de recordes na interface (caso exista um elemento com id "highscore-table")
+function updateHighScoreTable() {
+    try {
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        const tableDiv = document.getElementById("highscore-table");
+        if (!tableDiv) return;
+        
+        let html = `
+            <div style="background: rgba(0,0,0,0.7); color: orange; padding: 20px; border-radius: 10px; width: 90%; max-width: 720px; margin: 20px auto;">
+                <h2 style="text-align:center; margin-bottom: 10px;">RECORDES</h2>
+                <table style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: linear-gradient(to right, #FF3, #F60); color: #000;">
+                            <th style="padding: 8px;">Posição</th>
+                            <th style="padding: 8px;">Nome</th>
+                            <th style="padding: 8px;">Pontos</th>
+                            <th style="padding: 8px;">Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        highScores.forEach((record, index) => {
+            html += `
+                        <tr style="border-bottom: 1px solid #555;">
+                            <td style="padding: 8px; text-align:center;">${index+1}</td>
+                            <td style="padding: 8px; text-align:center;">${record.name}</td>
+                            <td style="padding: 8px; text-align:center;">${record.score}</td>
+                            <td style="padding: 8px; text-align:center;">${record.date}</td>
+                        </tr>
+            `;
+        });
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        tableDiv.innerHTML = html;
+    } catch (e) {
+        console.error("Erro ao atualizar a tabela de recordes:", e);
+    }
+}
+
+// Função para desenhar os recordes na tela
+function drawHighScores(ctx) {
+    try {
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "orange";
+        ctx.textAlign = "center";
+        // Título para os recordes
+        ctx.fillText("RECORDES", canvas.width / 2, canvas.height / 2 - 10);
+        let startY = canvas.height / 2 + 15;
+        highScores.forEach((record, index) => {
+            let line = `${index + 1}. ${record.name} – ${record.score} pts (${record.date})`;
+            ctx.fillText(line, canvas.width / 2, startY + index * 25);
+        });
+    } catch (err) {
+        console.error("Erro ao desenhar recordes:", err);
+    }
+}
+
+// Função para atualizar o relatório final
+function updateFinalReport() {
+    try {
+        // Obtém os recordes do localStorage
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        
+        // Cálculo dos valores do relatório de pontuação:
+        const eliminated = invaders.filter(invader => !invader.alive).length;
+        const pointsEliminated = eliminated * 2;
+        const pointsMissed = missedShots * 1;
+        const pointsLost = lostLivesCount * 10;
+        const totalPoints = pointsEliminated - pointsMissed - pointsLost;
+        
+        // Cria um container com display:flex para as duas colunas
+        let html = `
+            <div style="font-family: sans-serif; color: #00FF00; display: flex; 
+                        flex-direction: row; justify-content: space-between; 
+                        width: 90%; max-width: 720px; margin: 20px auto; 
+                        background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;">
+                <!-- Coluna dos Recordes -->
+                <div style="flex: 1; padding: 10px; text-align: center;">
+                    <h3 style="margin-bottom: 10px; font-size: 18px;">RECORDES</h3>
+                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Posição</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Nome</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Pontos</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        // Adiciona cada recorde à tabela
+        highScores.forEach((record, index) => {
+            html += `
+                <tr>
+                    <td style="padding: 6px; text-align:center;">${index+1}</td>
+                    <td style="padding: 6px; text-align:center;">${record.name}</td>
+                    <td style="padding: 6px; text-align:center;">${record.score}</td>
+                    <td style="padding: 6px; text-align:center;">${record.date}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Coluna do Relatório de Pontuação -->
+                <div style="flex: 1; padding: 10px; text-align: center;">
+                    <h3 style="margin-bottom: 10px; font-size: 18px;">RELATÓRIO DE PONTUAÇÃO</h3>
+                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Item</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Quantidade</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Valor</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Eliminados</td>
+                                <td style="padding: 6px; text-align:center;">${eliminated}</td>
+                                <td style="padding: 6px; text-align:center;">2</td>
+                                <td style="padding: 6px; text-align:center;">${pointsEliminated}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Tiros errados</td>
+                                <td style="padding: 6px; text-align:center;">${missedShots}</td>
+                                <td style="padding: 6px; text-align:center;">-1</td>
+                                <td style="padding: 6px; text-align:center;">${-pointsMissed}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Vidas perdidas</td>
+                                <td style="padding: 6px; text-align:center;">${lostLivesCount}</td>
+                                <td style="padding: 6px; text-align:center;">-10</td>
+                                <td style="padding: 6px; text-align:center;">${-pointsLost}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="padding: 6px; text-align: right; border-top: 1px solid #00FF00;"><strong>PONTOS TOTAIS:</strong></td>
+                                <td style="padding: 6px; text-align:center; border-top: 1px solid #00FF00;"><strong>${totalPoints}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        // Insere o HTML combinado na div "highscore-table"
+        const tableDiv = document.getElementById("highscore-table");
+        if (tableDiv) {
+            tableDiv.innerHTML = html;
+            // Posiciona essa div dentro da tela final, centralizada
+            tableDiv.style.position = "absolute";
+            tableDiv.style.top = "30%";
+            tableDiv.style.left = "50%";
+            tableDiv.style.transform = "translate(-50%, 0)";
+            tableDiv.style.zIndex = "100";
+        }
+    } catch (e) {
+        console.error("Erro ao atualizar relatório final:", e);
+    }
+}
+
+// Função para zerar os recordes
+function clearHighScores() {
+    try {
+        // Remove os recordes do localStorage
+        localStorage.removeItem("highScores");
+        console.log("Recordes zerados com sucesso!");
+        
+        // Atualiza a tabela se estiver visível
+        if (document.getElementById("highscore-table")) {
+            document.getElementById("highscore-table").innerHTML = "";
+        }
+    } catch (e) {
+        console.error("Erro ao zerar recordes:", e);
     }
 }
 

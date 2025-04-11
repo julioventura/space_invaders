@@ -57,29 +57,31 @@ class Player {
         this.x = Math.min(canvas.width - this.width, this.x + this.speed);
     }
     
-    shoot(activeProjectilesCount) {
-        // Verifica se o jogador pode atirar e se não ultrapassou o número máximo de tiros
-        if (!this.shooting && activeProjectilesCount < this.maxProjectiles) {
+    // Método de tiro:
+    shoot() {
+        // Verifica se já não está atirando e se tem projéteis disponíveis
+        if (!this.shooting && playerProjectiles.length < this.maxProjectiles) {
             this.shooting = true;
-            this.totalShotsFired++; // Incrementa o contador de tiros
+            this.totalShotsFired++;
             
-            // Calcula a posição inicial do tiro (centro do canhão do jogador)
-            const projectileX = this.x + (this.width / 2) - 2;
-            const projectileY = this.y - 5;
-            
-            return new Projectile(
-                projectileX, 
-                projectileY, 
-                4,                
-                10,     // altura
-                10,     // velocidade 
-                1,      // direção (1 = para cima)
-                "#0f0"  // cor verde
+            // Cria um novo projétil na posição do canhão do jogador
+            const projectile = new Projectile(
+                this.x + (this.width / 2) - 2, // Centraliza com o canhão
+                this.y - 5, // Um pouco acima do jogador
+                4, 10, 8, 1, "#fff" // Largura, altura, velocidade, direção, cor
             );
+            
+            // Adiciona ao array de projéteis
+            playerProjectiles.push(projectile);
+            
+            // Toca o som de tiro
+            if (soundManager) {
+                soundManager.playShootSound();
+            }
         }
-        return null;
     }
-    
+
+    // Método para permitir atirar novamente
     resetShot() {
         this.shooting = false;
     }
