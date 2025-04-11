@@ -228,12 +228,12 @@ function renderStartScreen() {
     ];
 
     // Layout e estilo da tabela
-    const colWidth1 = 110; 
-    const colWidth2 = 170; 
+    const colWidth1 = 140;  // Largura da primeira coluna (100px)
+    const colWidth2 = 200;  // Largura da segunda coluna (250px)
     const totalWidth = colWidth1 + colWidth2;
     const rowHeight = 25;
     const tableX = canvas.width / 2 - totalWidth / 2;
-    const padding = 6;    
+    const padding = 10;  // padding de 10px em todos os lados
 
     // Adiciona um fundo semi-transparente para a tabela
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -254,10 +254,6 @@ function renderStartScreen() {
         rows.length * rowHeight + padding * 2
     );
 
-    // Desenha as linhas da tabela
-    ctx.textAlign = "left";
-    ctx.font = "bold 16px Arial";
-
     // Conteúdo
     ctx.fillStyle = "#00FF00"; // Verde fósforo para o conteúdo
     ctx.font = "16px Arial";
@@ -265,10 +261,14 @@ function renderStartScreen() {
         // Adiciona um efeito de pulsação nas teclas
         const pulseValue = (Math.sin(Date.now() * 0.002 + i * 0.5) + 1) * 0.5;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulseValue * 0.3})`;
-        ctx.fillText(row[0], tableX + padding, instructionsY + ((i + 1) * rowHeight));
         
-        // Texto de ação em verde constante
+        // Centraliza o texto da primeira coluna
+        ctx.textAlign = "center";
+        ctx.fillText(row[0], tableX + (colWidth1 / 2), instructionsY + ((i + 1) * rowHeight));
+        
+        // Texto de ação em verde constante, alinhado à esquerda
         ctx.fillStyle = "#00FF00";
+        ctx.textAlign = "left";
         ctx.fillText(row[1], tableX + colWidth1 + padding, instructionsY + ((i + 1) * rowHeight));
     });
 
