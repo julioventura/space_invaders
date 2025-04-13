@@ -1,0 +1,27 @@
+TODO¶ ↑
+* create map
+  - use vertical or horizontal navigation for the map (if horizontal it' s easier to
+    to use a train(locomotive) as the main player) otherwise we need to find out a
+    better main player than Ruby logo
+  - preferably use text file to create an map
+  - if using yml create a system to edit/save maps on the fly
+  - use paralax effects in background
+* create game enemies
+  - something that represents anti-ruby values like java, xml...
+  - define at least 3 different enemies with different behaviors
+  - they can be moving enemies or static enemies
+* game menu
+  - create game states, like Menu, Pause, Game Over, and Playing
+* game music
+  - add sound effects for explosions, gun shots, locomotive sounds
+  - compose background song or find an open source one
+* main player
+  - implement an energy bar or lifes concept
+  - use sprites to emulate motion
+  - implement space bar as action keys (fire rail)
+  - when dying, present GameOver state
+  - 10 rail's pieces as maximum ammo
+* gameplay
+  - add 'extra life' or 'energy increase' concept
+  - add game score concept
+  - player can collect ammo to reload

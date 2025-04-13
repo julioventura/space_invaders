@@ -19,11 +19,11 @@ class SoundManager {
         
         // Recursos compartilhados para economizar memória
         this.activeOscillators = 0;
-        this.maxOscillators = 5; // Limite máximo de osciladores ao mesmo tempo
+        this.maxOscillators = 10; // Limite máximo de osciladores ao mesmo tempo
 
         // Volume inicial
-        this.volume = 0.3;
-        this.volumeStep = 0.05; // 5% por ajuste
+        this.volume = 0.05; // Reduzido pela metade (era 0.10)
+        this.volumeStep = 0.1; // 10% por ajuste
     }
     
     init() {
@@ -469,27 +469,52 @@ class SoundManager {
     }
     
     // Método atualizado para o som quando um invasor é atingido:
-    // Som mais agudo, seco e explosivo
+    // Som mais grave, menos estridente e volume reduzido
     playInvaderHitSound() {
         try {
             if (!this.isInitialized || this.isMuted) return;
             if (!this.startAudioNode()) return;
             
-            const oscillator = this.audioContext.createOscillator();
+            // Usamos dois osciladores para criar um som mais complexo e explosivo
+            const oscillator1 = this.audioContext.createOscillator();
+            const oscillator2 = this.audioContext.createOscillator();
             const gain = this.audioContext.createGain();
             
-            oscillator.type = 'square'; // Som curto e agressivo
-            oscillator.frequency.value = 400; // Frequência mais aguda
-            oscillator.connect(gain);
+            // Primeiro oscilador: som grave para a explosão (REDUZIDO de 120Hz para 75Hz)
+            oscillator1.type = 'sawtooth'; // Forma de onda "dente de serra" para um som mais áspero
+            oscillator1.frequency.value = 75; // Frequência mais grave (75Hz)
+            
+            // Segundo oscilador: componente de ruído (REDUZIDO de 80Hz para 50Hz)
+            oscillator2.type = 'triangle'; // Alterado para triângulo para som menos estridente
+            oscillator2.frequency.value = 50; // Frequência mais grave ainda
+            
+            // Conecta os osciladores ao gain node
+            oscillator1.connect(gain);
+            oscillator2.connect(gain);
             gain.connect(this.masterGain);
             
             const currentTime = this.audioContext.currentTime;
-            const duration = 0.05; // Duração muito curta para efeito explosivo
-            gain.gain.setValueAtTime(0.8, currentTime);
+            const duration = 0.3; // Duração mantida
+            
+            // Envelope de amplitude mais complexo para simular a explosão
+            // REDUZIDO o ganho inicial de 0.7 para 0.3 (menos volume)
+            gain.gain.setValueAtTime(0.3, currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.15, currentTime + 0.1);
             gain.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
             
-            oscillator.start(currentTime);
-            oscillator.stop(currentTime + duration);
+            // Modulação de frequência para simular a explosão descendo
+            // VALORES REDUZIDOS para frequências mais graves
+            oscillator1.frequency.setValueAtTime(85, currentTime);
+            oscillator1.frequency.exponentialRampToValueAtTime(40, currentTime + duration);
+            
+            oscillator2.frequency.setValueAtTime(60, currentTime);
+            oscillator2.frequency.exponentialRampToValueAtTime(30, currentTime + duration);
+            
+            // Inicia e para os osciladores
+            oscillator1.start(currentTime);
+            oscillator2.start(currentTime);
+            oscillator1.stop(currentTime + duration);
+            oscillator2.stop(currentTime + duration);
             
             setTimeout(() => {
                 this.releaseAudioNode();

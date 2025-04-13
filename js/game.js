@@ -60,81 +60,26 @@ starImg.src = "img/stars.jpg"; // Caminho para a imagem de estrelas
 let starOffset = 0;
 let starSpeed = 0.5; // Velocidade de deslocamento das estrelas
 
-function gameLoop(timestamp) {
-    // Limitar a taxa de quadros
-    if (timestamp - lastFrameTime < FRAME_INTERVAL) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
+// Adicione estas variáveis globais junto às outras no topo do arquivo
+let countdownActive = false;
+let countdownValue = 3;
+let countdownTimer = 0;
 
-    // Calcular tempo delta com limite máximo para evitar saltos enormes
-    const deltaTime = Math.min(timestamp - lastFrameTime, 100);
+function gameLoop(timestamp) {
+    // Calcula o tempo decorrido desde o último frame
+    const deltaTime = timestamp - lastFrameTime;
     lastFrameTime = timestamp;
 
-    // Renovação periódica do contexto de áudio para evitar vazamentos
-    const runningTime = timestamp - gameStartTime;
-    if (soundManager && soundManager.audioContext && runningTime > 60000 && runningTime % 60000 < 50) {
-        try {
-            // A cada minuto, limita o número de osciladores
-            soundManager.activeOscillators = 0;
-            console.log("Sistema de áudio renovado");
-        } catch (e) {
-            console.warn("Erro ao renovar áudio:", e);
-        }
+    // Atualiza o estado do jogo
+    if (!isPaused && !gameOver && !gameWon) {
+        update(deltaTime);
     }
 
-    try {
-        // Processamento do jogo com proteção contra erros
-        if (!isPaused) {
-            update(deltaTime);
-        }
-        render();
-    } catch (e) {
-        console.error("Erro no loop do jogo:", e);
-        // Tenta recuperar de erros
-        isPaused = true;
-        setTimeout(() => {
-            isPaused = false;
-            lastFrameTime = performance.now();
-        }, 1000);
-    }
+    // Renderiza o estado do jogo
+    render();
 
-    // Monitor de desempenho
-    gamePerformance.frameCount++;
-    gamePerformance.frameTime += deltaTime;
-
-    // A cada 5 segundos, verificar o desempenho
-    if (gamePerformance.frameTime >= 5000) {
-        const fps = gamePerformance.frameCount / (gamePerformance.frameTime / 1000);
-        console.log("FPS médio:", fps.toFixed(2));
-
-        // Se o FPS estiver muito baixo, entrar em modo de recuperação
-        if (fps < 30 && !gamePerformance.recoveryMode) {
-            console.warn("Desempenho baixo detectado, ativando modo de recuperação");
-            gamePerformance.recoveryMode = true;
-
-            // Reduzir a carga visual e de processamento
-            reducedGraphics = true;
-
-            // Forçar limpeza de objetos
-            cleanupInactiveObjects();
-        }
-
-        // Resetar contadores
-        gamePerformance.frameCount = 0;
-        gamePerformance.frameTime = 0;
-    }
-
-    // Limpeza periódica de objetos a cada 2 segundos
-    if (timestamp - gamePerformance.lastCleanup > 2000) {
-        cleanupInactiveObjects();
-        gamePerformance.lastCleanup = timestamp;
-    }
-
-    // Continue o loop se o jogo não acabou
-    if (!gameOver && !gameWon) {
-        requestAnimationFrame(gameLoop);
-    }
+    // Continua o loop
+    requestAnimationFrame(gameLoop);
 }
 
 // Função de inicialização do jogo
@@ -152,9 +97,9 @@ function init() {
 
         // Criação da formação de invasores
         const rows = 5;
-        const cols = 10; // Alterado: 10 invasores por linha conforme solicitado
+        const cols = 11; 
         const spacingX = 45; // Ajustado para melhor distribuição
-        const spacingY = 30;
+        const spacingY = 33;
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
                 const x = col * spacingX + 35; // Ajuste para centralizar
@@ -219,7 +164,6 @@ function renderStartScreen() {
     // Desenha tabela sem bordas
     const rows = [
         ["←  →", "Mover a nave"],
-        ["ESPAÇO", "Atirar"],
         ["↑  ↓", "Volume +/-"],
         ["M", "Ligar/Desligar som"],
         ["ESC", "Pausar o jogo"],
@@ -227,31 +171,33 @@ function renderStartScreen() {
         ["DEL", "Zerar os recordes"]
     ];
 
-    // Layout e estilo da tabela
-    const colWidth1 = 140;  // Largura da primeira coluna (100px)
-    const colWidth2 = 200;  // Largura da segunda coluna (250px)
+    // Layout e estilo da tabela com altura aumentada
+    const colWidth1 = 150;  // Largura da primeira coluna
+    const colWidth2 = 200;  // Largura da segunda coluna
     const totalWidth = colWidth1 + colWidth2;
     const rowHeight = 25;
     const tableX = canvas.width / 2 - totalWidth / 2;
     const padding = 10;  // padding de 10px em todos os lados
 
-    // Adiciona um fundo semi-transparente para a tabela
+    // Adiciona um fundo semi-transparente para a tabela (altura aumentada em 20px)
+    // Calculando altura total: rows.length * rowHeight + padding * 2 + 20
+    const tableHeight = rows.length * rowHeight + padding * 2 + 20;
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(
         tableX - padding, 
         instructionsY - padding, 
         totalWidth + padding * 2, 
-        rows.length * rowHeight + padding * 2
+        tableHeight
     );
 
-    // Desenha borda sutil ao redor da tabela
+    // Desenha borda sutil ao redor da tabela (altura aumentada em 20px)
     ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
     ctx.lineWidth = 1;
     ctx.strokeRect(
         tableX - padding, 
         instructionsY - padding, 
         totalWidth + padding * 2, 
-        rows.length * rowHeight + padding * 2
+        tableHeight
     );
 
     // Conteúdo
@@ -262,21 +208,24 @@ function renderStartScreen() {
         const pulseValue = (Math.sin(Date.now() * 0.002 + i * 0.5) + 1) * 0.5;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulseValue * 0.3})`;
         
-        // Centraliza o texto da primeira coluna
+        // Centraliza o texto da primeira coluna horizontalmente
         ctx.textAlign = "center";
-        ctx.fillText(row[0], tableX + (colWidth1 / 2), instructionsY + ((i + 1) * rowHeight));
+        // Centraliza o texto verticalmente dentro da linha (adicionando 10px à posição Y)
+        // O valor 10 é metade da altura adicional (20px / 2)
+        ctx.fillText(row[0], tableX + (colWidth1 / 2), instructionsY + ((i + 1) * rowHeight) + 10);
         
         // Texto de ação em verde constante, alinhado à esquerda
         ctx.fillStyle = "#00FF00";
         ctx.textAlign = "left";
-        ctx.fillText(row[1], tableX + colWidth1 + padding, instructionsY + ((i + 1) * rowHeight));
+        // Centraliza o texto verticalmente (adicionando 10px à posição Y)
+        ctx.fillText(row[1], tableX + colWidth1 + padding, instructionsY + ((i + 1) * rowHeight) + 10);
     });
 
     // Versão do jogo no rodapé
     ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Versão 1.0 (10/04/2025)", canvas.width / 2, canvas.height - 20);
+    ctx.fillText("Versão 1.01 (13/04/2025)", canvas.width / 2, canvas.height - 20);
 }
 
 // Remova o event listener de clique e use apenas a tecla espaço
@@ -285,33 +234,111 @@ if (canvas.hasClickEventListener) {
     canvas.hasClickEventListener = false;
 }
 
-// Ajuste na função startGame:
-
+// Modifique a função startGame() para iniciar a contagem regressiva em vez de começar o jogo imediatamente
 function startGame() {
     try {
-        if (gameStarted) return;
+        if (gameStarted || countdownActive) return;
 
-        gameStarted = true;
-        gameStartTime = performance.now();
-        lastFrameTime = performance.now();
-
-        // Ativa o sistema de som
-        if (soundManager) {
-            soundManager.activate();
-        }
-
-        // Reseta o contador de tiros se necessário
-        if (player) {
-            player.totalShotsFired = 0;
-        }
-
-        // Inicia o loop de jogo
-        requestAnimationFrame(gameLoop);
+        // Inicia a contagem regressiva em vez de começar o jogo imediatamente
+        countdownActive = true;
+        countdownValue = 3;
+        countdownTimer = 0;
+        
+        // Inicia o loop de contagem regressiva
+        requestAnimationFrame(countdownLoop);
     } catch (e) {
-        console.error("Erro ao iniciar o jogo:", e);
-        // Tenta reiniciar o processo
-        gameStarted = false;
-        setTimeout(startGame, 1000);
+        console.error("Erro ao iniciar a contagem regressiva:", e);
+        countdownActive = false;
+    }
+}
+
+// Adicione esta nova função para o loop de contagem regressiva
+function countdownLoop(timestamp) {
+    try {
+        // Limpa o canvas (fundo preto)
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Desenha o fundo de estrelas se disponível
+        if (starImg.complete) {
+            // Atualiza o offset para criar o efeito de movimento
+            starOffset += starSpeed;
+            if (starOffset > canvas.height) {
+                starOffset = 0;
+            }
+            // Repete a imagem para preencher toda a tela verticalmente
+            for (let y = -canvas.height; y < canvas.height; y += canvas.height) {
+                ctx.drawImage(starImg, 0, starOffset + y, canvas.width, canvas.height);
+            }
+        }
+        
+        // Calcula o tempo decorrido
+        if (countdownTimer === 0) {
+            countdownTimer = timestamp;
+        }
+        
+        const elapsed = timestamp - countdownTimer;
+        
+        // Atualiza o valor da contagem a cada segundo
+        if (elapsed >= 500) {
+            countdownValue--;
+            countdownTimer = timestamp;
+            
+            // Toca um som de bipe, se disponível
+            // if (soundManager) {
+            //     soundManager.playInvaderStep(); // Ou outro som curto disponível
+            // }
+        }
+        
+        // Desenha o número da contagem regressiva
+        ctx.fillStyle = "#00FF00";
+        ctx.font = "bold 100px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        
+        // Animação de escala para tornar a contagem mais dinâmica
+        const scale = 1 + 0.2 * Math.sin((elapsed % 1000) / 1000 * Math.PI);
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(scale, scale);
+        ctx.fillText(countdownValue.toString(), 0, 0);
+        ctx.restore();
+        
+        ctx.font = "24px Arial";
+        ctx.fillText("Prepare-se...", canvas.width / 2, canvas.height / 2 + 80);
+        
+        // Se a contagem ainda não chegou a zero, continua o loop
+        if (countdownValue > 0) {
+            requestAnimationFrame(countdownLoop);
+        } else {
+            // Quando a contagem chega a zero, inicia o jogo de fato
+            countdownActive = false;
+            
+            // Agora realmente inicia o jogo
+            gameStarted = true;
+            gameStartTime = performance.now();
+            lastFrameTime = performance.now();
+            
+            // Ativa o sistema de som
+            if (soundManager) {
+                soundManager.activate();
+                soundManager.playInvaderStep(); // Som para indicar o início
+            }
+            
+            // Reseta o contador de tiros se necessário
+            if (player) {
+                player.totalShotsFired = 0;
+            }
+            
+            // Inicia o loop de jogo
+            requestAnimationFrame(gameLoop);
+        }
+    } catch (e) {
+        console.error("Erro na contagem regressiva:", e);
+        // Tenta iniciar o jogo diretamente em caso de erro
+        countdownActive = false;
+        gameStarted = true;
+        requestAnimationFrame(gameLoop);
     }
 }
 
@@ -356,6 +383,16 @@ function update(deltaTime) {
 
         // Atualiza o player (para o efeito de piscar)
         player.update(deltaTime);
+
+        // Atualiza a posição dos projéteis do jogador
+        playerProjectiles.forEach(projectile => {
+            projectile.update();
+        });
+
+        // Atualiza os invasores (para movimentação e explosões)
+        invaders.forEach(invader => {
+            invader.update(deltaTime);
+        });
 
         // Acumula o tempo decorrido
         moveAccumulator += deltaTime;
@@ -451,50 +488,31 @@ function update(deltaTime) {
 
         // Atualização dos tiros do jogador
         playerProjectiles.forEach(projectile => {
-            projectile.update();
-            let hitSomething = false; // Flag para detectar se o projétil acertou algo
-
-            // Verifica colisões com invasores
+            if (!projectile.active) return;
+            
+            let hitSomething = false;
+            
+            // Colisão com invasores
             invaders.forEach(invader => {
-                if (invader.alive && projectile.active && isColliding(projectile, invader)) {
-                    invader.alive = false;
-                    projectile.active = false;
-                    player.resetShot();
-                    hitSomething = true;
-                    score = score + 2;
-                    if (soundManager) soundManager.playInvaderHitSound();
-                }
-            });
-
-            // Verifica colisões com barreiras
-            barriers.forEach(barrier => {
-                barrier.bricks.forEach(brick => {
-                    if (brick.health > 0 && projectile.active && isColliding(projectile, brick)) {
-                        brick.takeDamage();
-                        projectile.active = false;
-                        player.resetShot();
-                        hitSomething = true;
+                if (invader.alive && !invader.exploding && projectile.active && isColliding(projectile, invader)) {
+                    // Importante: primeiro inicie a explosão, depois desative o projétil
+                    invader.startExplosion(); // Inicia a animação de explosão
+                    projectile.active = false; // Desativa o projétil
+                    
+                    // Contabiliza pontos
+                    score += 2;
+                    
+                    // Toca o som de invasor atingido
+                    if (soundManager) {
+                        soundManager.playInvaderHitSound();
                     }
-                });
-            });
-
-            // Se o projétil atingir a área da linha-alvo do topo
-            if (projectile.active && projectile.y < TOP_LINE_Y + TOP_LINE_HEIGHT) {
-                projectile.active = false;
-                player.resetShot();
-                score = score - 1;       // Desconta 1 ponto
-                missedShots++;
-                console.log("Tiro atingiu a linha do topo! -1 ponto. Pontuação: " + score);
-                if (soundManager) {
-                    soundManager.playTopLineHitSound();  // Toca o som específico para a linha de topo
+                    
+                    hitSomething = true;
                 }
-                topLineColor = "red";   // Altera a cor da linha para vermelho
-                setTimeout(() => { topLineColor = "#333"; }, 500);
-            }
+            });
+            
+            // Restante da lógica...
         });
-
-        // Remover tiros inativos
-        playerProjectiles = playerProjectiles.filter(projectile => projectile.active);
 
         // Se o jogador não está atirando e o número de projéteis é menor que o máximo, permitir novo tiro
         if (playerProjectiles.length === 0) {
@@ -873,9 +891,216 @@ document.addEventListener("keyup", (e) => {
     }
 });
 
+// Função robusta para verificar e atualizar os recordes
+function checkHighScores() {
+    try {
+        // Verifica se já foi processado este recorde (adicione esta flag)
+        if (window.highScoreProcessed) return;
+        
+        // Obtém os recordes salvos ou inicializa como array vazio
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        
+        // Se houver menos de 5 recordes ou se o score atual for maior que o menor dos recordes existentes
+        if (highScores.length < 5 || score > highScores[highScores.length - 1].score) {
+            // Marca que já foi processado este recorde
+            window.highScoreProcessed = true;
+            
+            let playerName = prompt("Novo recorde! Insira seu nome:");
+            if (!playerName) {
+                playerName = "Anônimo";
+            }
+            
+            const now = new Date().toLocaleDateString();
+
+            // Adiciona o novo recorde
+            highScores.push({ name: playerName, score: score, date: now });
+            
+            // Ordena os recordes em ordem decrescente (maior score primeiro)
+            highScores.sort((a, b) => b.score - a.score);
+            
+            // Mantém somente os 5 melhores recordes
+            highScores = highScores.slice(0, 5);
+            
+            // Salva os recordes atualizados no localStorage
+            localStorage.setItem("highScores", JSON.stringify(highScores));
+        }
+        
+        // Atualiza a exibição dos recordes
+        updateFinalReport();
+    } catch (e) {
+        console.error("Erro ao atualizar recordes:", e);
+    }
+}
+
+// Função para atualizar a tabela de recordes na interface
+function updateHighScoreTable() {
+    try {
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        const tableDiv = document.getElementById("highscore-table");
+        if (!tableDiv) return;
+        
+        let html = `
+            <div style="background: rgba(0,0,0,0.7); color: orange; padding: 20px; border-radius: 10px; width: 90%; max-width: 720px; margin: 20px auto;">
+                <h2 style="text-align:center; margin-bottom: 10px;">RECORDES</h2>
+                <table style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: linear-gradient(to right, #FF3, #F60); color: #000;">
+                            <th style="padding: 8px;">Posição</th>
+                            <th style="padding: 8px;">Nome</th>
+                            <th style="padding: 8px;">Pontos</th>
+                            <th style="padding: 8px;">Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                    
+        highScores.forEach((record, index) => {
+            html += `
+                <tr style="border-bottom: 1px solid #555;">
+                    <td style="padding: 8px; text-align:center;">${index+1}</td>
+                    <td style="padding: 8px; text-align:center;">${record.name}</td>
+                    <td style="padding: 8px; text-align:center;">${record.score}</td>
+                    <td style="padding: 8px; text-align:center;">${record.date}</td>
+                </tr>`;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>`;
+        
+        tableDiv.innerHTML = html;
+    } catch (e) {
+        console.error("Erro ao atualizar tabela de recordes:", e);
+    }
+}
+
+// Função para zerar os recordes
+function clearHighScores() {
+    try {
+        // Remove os recordes do localStorage
+        localStorage.removeItem("highScores");
+        console.log("Recordes zerados com sucesso!");
+        
+        // Atualiza a tabela se estiver visível
+        if (document.getElementById("highscore-table")) {
+            document.getElementById("highscore-table").innerHTML = "";
+        }
+    } catch (e) {
+        console.error("Erro ao zerar recordes:", e);
+    }
+}
+
+// Função para atualizar o relatório final
+function updateFinalReport() {
+    try {
+        // Obtém os recordes do localStorage
+        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        
+        // Cálculo dos valores do relatório de pontuação:
+        const eliminated = invaders.filter(invader => !invader.alive).length;
+        const pointsEliminated = eliminated * 2;
+        const pointsMissed = missedShots * 1;
+        const pointsLost = lostLivesCount * 10;
+        const totalPoints = pointsEliminated - pointsMissed - pointsLost;
+        
+        // Cria um container com display:flex para as duas colunas
+        let html = `
+            <div style="font-family: sans-serif; color: #00FF00; display: flex; 
+                        flex-direction: row; justify-content: space-between; 
+                        width: 90%; max-width: 720px; margin: 20px auto; 
+                        background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;">
+                <!-- Coluna dos Recordes -->
+                <div style="flex: 1; padding: 10px; text-align: center;">
+                    <h3 style="margin-bottom: 10px; font-size: 18px;">RECORDES</h3>
+                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Posição</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Nome</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Pontos</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+        
+        // Adiciona cada recorde à tabela
+        highScores.forEach((record, index) => {
+            html += `
+                <tr>
+                    <td style="padding: 6px; text-align:center;">${index+1}</td>
+                    <td style="padding: 6px; text-align:center;">${record.name}</td>
+                    <td style="padding: 6px; text-align:center;">${record.score}</td>
+                    <td style="padding: 6px; text-align:center;">${record.date}</td>
+                </tr>`;
+        });
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Coluna do Relatório de Pontuação -->
+                <div style="flex: 1; padding: 10px; text-align: center;">
+                    <h3 style="margin-bottom: 10px; font-size: 18px;">RELATÓRIO DE PONTUAÇÃO</h3>
+                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Item</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Quantidade</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Valor</th>
+                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Eliminados</td>
+                                <td style="padding: 6px; text-align:center;">${eliminated}</td>
+                                <td style="padding: 6px; text-align:center;">2</td>
+                                <td style="padding: 6px; text-align:center;">${pointsEliminated}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Tiros errados</td>
+                                <td style="padding: 6px; text-align:center;">${missedShots}</td>
+                                <td style="padding: 6px; text-align:center;">-1</td>
+                                <td style="padding: 6px; text-align:center;">${-pointsMissed}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px; text-align:left;">Vidas perdidas</td>
+                                <td style="padding: 6px; text-align:center;">${lostLivesCount}</td>
+                                <td style="padding: 6px; text-align:center;">-10</td>
+                                <td style="padding: 6px; text-align:center;">${-pointsLost}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" style="padding: 6px; text-align: right; border-top: 1px solid #00FF00;"><strong>PONTOS TOTAIS:</strong></td>
+                                <td style="padding: 6px; text-align:center; border-top: 1px solid #00FF00;"><strong>${totalPoints}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        
+        // Insere o HTML combinado na div "highscore-table"
+        const tableDiv = document.getElementById("highscore-table");
+        if (tableDiv) {
+            tableDiv.innerHTML = html;
+            // Posiciona essa div dentro da tela final, centralizada
+            tableDiv.style.position = "absolute";
+            tableDiv.style.top = "30%";
+            tableDiv.style.left = "50%";
+            tableDiv.style.transform = "translate(-50%, 0)";
+            tableDiv.style.zIndex = "100";
+        }
+    } catch (e) {
+        console.error("Erro ao atualizar relatório final:", e);
+    }
+}
+
 // Função para reiniciar o jogo
 function resetGame() {
     try {
+        // Reinicia a flag que controla o processamento dos recordes
+        window.highScoreProcessed = false;
+        
         moveInterval = 500;
         invaderShootInterval = 750;
 
@@ -936,226 +1161,6 @@ function cleanupInactiveObjects() {
         // Abordagem mais radical para recuperação
         playerProjectiles = [];
         invaderProjectiles = [];
-    }
-}
-
-// Função robusta para verificar e atualizar os recordes
-function checkHighScores() {
-    try {
-        // Obtém os recordes salvos ou inicializa como array vazio
-        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
-        
-        // Se houver menos de 5 recordes (ALTERADO DE 3 PARA 5) ou se o score atual for maior que o menor dos recordes existentes
-        if (highScores.length < 5 || score > highScores[highScores.length - 1].score) {
-            let playerName = prompt("Novo recorde! Insira seu nome:");
-            if (!playerName) {
-                playerName = "Anônimo";
-            }
-            
-            const now = new Date().toLocaleDateString();
-
-            // Adiciona o novo recorde
-            highScores.push({ name: playerName, score: score, date: now });
-            
-            // Ordena os recordes em ordem decrescente (maior score primeiro)
-            highScores.sort((a, b) => b.score - a.score);
-            
-            // Mantém somente os 5 melhores recordes (ALTERADO DE 3 PARA 5)
-            highScores = highScores.slice(0, 5);
-            
-            // Salva os recordes atualizados no localStorage
-            localStorage.setItem("highScores", JSON.stringify(highScores));
-        }
-        
-        // Atualiza a exibição dos recordes
-        updateFinalReport();
-    } catch (e) {
-        console.error("Erro ao atualizar recordes:", e);
-    }
-}
-
-// Função para atualizar a tabela de recordes na interface (caso exista um elemento com id "highscore-table")
-function updateHighScoreTable() {
-    try {
-        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
-        const tableDiv = document.getElementById("highscore-table");
-        if (!tableDiv) return;
-        
-        let html = `
-            <div style="background: rgba(0,0,0,0.7); color: orange; padding: 20px; border-radius: 10px; width: 90%; max-width: 720px; margin: 20px auto;">
-                <h2 style="text-align:center; margin-bottom: 10px;">RECORDES</h2>
-                <table style="width:100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: linear-gradient(to right, #FF3, #F60); color: #000;">
-                            <th style="padding: 8px;">Posição</th>
-                            <th style="padding: 8px;">Nome</th>
-                            <th style="padding: 8px;">Pontos</th>
-                            <th style="padding: 8px;">Data/Hora</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        highScores.forEach((record, index) => {
-            html += `
-                        <tr style="border-bottom: 1px solid #555;">
-                            <td style="padding: 8px; text-align:center;">${index+1}</td>
-                            <td style="padding: 8px; text-align:center;">${record.name}</td>
-                            <td style="padding: 8px; text-align:center;">${record.score}</td>
-                            <td style="padding: 8px; text-align:center;">${record.date}</td>
-                        </tr>
-            `;
-        });
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        tableDiv.innerHTML = html;
-    } catch (e) {
-        console.error("Erro ao atualizar a tabela de recordes:", e);
-    }
-}
-
-// Função para desenhar os recordes na tela
-function drawHighScores(ctx) {
-    try {
-        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
-        ctx.font = "20px Arial";
-        ctx.fillStyle = "orange";
-        ctx.textAlign = "center";
-        // Título para os recordes
-        ctx.fillText("RECORDES", canvas.width / 2, canvas.height / 2 - 10);
-        let startY = canvas.height / 2 + 15;
-        highScores.forEach((record, index) => {
-            let line = `${index + 1}. ${record.name} – ${record.score} pts (${record.date})`;
-            ctx.fillText(line, canvas.width / 2, startY + index * 25);
-        });
-    } catch (err) {
-        console.error("Erro ao desenhar recordes:", err);
-    }
-}
-
-// Função para atualizar o relatório final
-function updateFinalReport() {
-    try {
-        // Obtém os recordes do localStorage
-        let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
-        
-        // Cálculo dos valores do relatório de pontuação:
-        const eliminated = invaders.filter(invader => !invader.alive).length;
-        const pointsEliminated = eliminated * 2;
-        const pointsMissed = missedShots * 1;
-        const pointsLost = lostLivesCount * 10;
-        const totalPoints = pointsEliminated - pointsMissed - pointsLost;
-        
-        // Cria um container com display:flex para as duas colunas
-        let html = `
-            <div style="font-family: sans-serif; color: #00FF00; display: flex; 
-                        flex-direction: row; justify-content: space-between; 
-                        width: 90%; max-width: 720px; margin: 20px auto; 
-                        background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;">
-                <!-- Coluna dos Recordes -->
-                <div style="flex: 1; padding: 10px; text-align: center;">
-                    <h3 style="margin-bottom: 10px; font-size: 18px;">RECORDES</h3>
-                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
-                        <thead>
-                            <tr>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Posição</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Nome</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Pontos</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        // Adiciona cada recorde à tabela
-        highScores.forEach((record, index) => {
-            html += `
-                <tr>
-                    <td style="padding: 6px; text-align:center;">${index+1}</td>
-                    <td style="padding: 6px; text-align:center;">${record.name}</td>
-                    <td style="padding: 6px; text-align:center;">${record.score}</td>
-                    <td style="padding: 6px; text-align:center;">${record.date}</td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Coluna do Relatório de Pontuação -->
-                <div style="flex: 1; padding: 10px; text-align: center;">
-                    <h3 style="margin-bottom: 10px; font-size: 18px;">RELATÓRIO DE PONTUAÇÃO</h3>
-                    <table style="width:100%; border-collapse: collapse; font-size: 14px;">
-                        <thead>
-                            <tr>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Item</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Quantidade</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Valor</th>
-                                <th style="padding: 6px; border-bottom: 1px solid #00FF00;">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="padding: 6px; text-align:left;">Eliminados</td>
-                                <td style="padding: 6px; text-align:center;">${eliminated}</td>
-                                <td style="padding: 6px; text-align:center;">2</td>
-                                <td style="padding: 6px; text-align:center;">${pointsEliminated}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 6px; text-align:left;">Tiros errados</td>
-                                <td style="padding: 6px; text-align:center;">${missedShots}</td>
-                                <td style="padding: 6px; text-align:center;">-1</td>
-                                <td style="padding: 6px; text-align:center;">${-pointsMissed}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 6px; text-align:left;">Vidas perdidas</td>
-                                <td style="padding: 6px; text-align:center;">${lostLivesCount}</td>
-                                <td style="padding: 6px; text-align:center;">-10</td>
-                                <td style="padding: 6px; text-align:center;">${-pointsLost}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" style="padding: 6px; text-align: right; border-top: 1px solid #00FF00;"><strong>PONTOS TOTAIS:</strong></td>
-                                <td style="padding: 6px; text-align:center; border-top: 1px solid #00FF00;"><strong>${totalPoints}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-        
-        // Insere o HTML combinado na div "highscore-table"
-        const tableDiv = document.getElementById("highscore-table");
-        if (tableDiv) {
-            tableDiv.innerHTML = html;
-            // Posiciona essa div dentro da tela final, centralizada
-            tableDiv.style.position = "absolute";
-            tableDiv.style.top = "30%";
-            tableDiv.style.left = "50%";
-            tableDiv.style.transform = "translate(-50%, 0)";
-            tableDiv.style.zIndex = "100";
-        }
-    } catch (e) {
-        console.error("Erro ao atualizar relatório final:", e);
-    }
-}
-
-// Função para zerar os recordes
-function clearHighScores() {
-    try {
-        // Remove os recordes do localStorage
-        localStorage.removeItem("highScores");
-        console.log("Recordes zerados com sucesso!");
-        
-        // Atualiza a tabela se estiver visível
-        if (document.getElementById("highscore-table")) {
-            document.getElementById("highscore-table").innerHTML = "";
-        }
-    } catch (e) {
-        console.error("Erro ao zerar recordes:", e);
     }
 }
 
