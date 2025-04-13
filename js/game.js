@@ -67,7 +67,7 @@ let countdownTimer = 0;
 
 // Adicione estas variáveis globais após as outras variáveis no topo do arquivo
 let currentLevel = 1;
-let maxLevel = 2;
+let maxLevel = 3;
 let levelTransitionActive = false;
 let levelTransitionTimer = 0;
 let levelTransitionDuration = 3000; // 3 segundos de transição entre fases
@@ -496,29 +496,56 @@ function update(deltaTime) {
         // Atualização dos tiros do jogador
         playerProjectiles.forEach(projectile => {
             if (!projectile.active) return;
-            
             let hitSomething = false;
-            
-            // Colisão com invasores
+
+            // Verificar colisão com barreiras (NOVO)
+            barriers.forEach(barrier => {
+                if (hitSomething) return;
+                
+                barrier.bricks.forEach(brick => {
+                    if (brick.health > 0 && isColliding(projectile, brick)) {
+                        brick.takeDamage();
+                        projectile.active = false;
+                        hitSomething = true;
+                        
+                        // Toca som de impacto na barreira
+                        if (soundManager) {
+                            soundManager.playShortExplosionSound();
+                        }
+                    }
+                });
+            });
+
+            // Verificar colisão com invasores (código existente)
             invaders.forEach(invader => {
-                if (invader.alive && !invader.exploding && projectile.active && isColliding(projectile, invader)) {
-                    // Importante: primeiro inicie a explosão, depois desative o projétil
-                    invader.startExplosion(); // Inicia a animação de explosão
-                    projectile.active = false; // Desativa o projétil
-                    
-                    // Contabiliza pontos
+                if (invader.alive && !invader.exploding && projectile.active && !hitSomething && isColliding(projectile, invader)) {
+                    // Inicia a explosão em vez de remover imediatamente
+                    invader.startExplosion();
+                    projectile.active = false;
+                    hitSomething = true;
                     score += 2;
                     
-                    // Toca o som de invasor atingido
+                    // Reproduz o novo som de explosão
                     if (soundManager) {
                         soundManager.playInvaderHitSound();
                     }
-                    
-                    hitSomething = true;
                 }
             });
-            
-            // Restante da lógica...
+
+            // Verificar colisão com o topo da tela (código existente)
+            if (projectile.active && projectile.y < TOP_LINE_Y + TOP_LINE_HEIGHT) {
+                projectile.active = false;
+                topLineColor = "#F00";
+                setTimeout(() => { topLineColor = "#333"; }, 100);
+                
+                // Incrementa contador de tiros perdidos
+                missedShots++;
+                
+                // Toca som de acerto na linha de topo
+                if (soundManager) {
+                    soundManager.playTopLineHitSound();
+                }
+            }
         });
 
         // Se o jogador não está atirando e o número de projéteis é menor que o máximo, permitir novo tiro
@@ -1237,7 +1264,8 @@ function cleanupInactiveObjects() {
     }
 }
 
-// Adicione esta função para iniciar o próximo nível
+// Modifique a função startNextLevel() para a fase 2
+
 function startNextLevel() {
     try {
         // Limpa os projéteis da fase anterior
@@ -1247,17 +1275,17 @@ function startNextLevel() {
         // Reinicia os invasores para a nova fase
         invaders = [];
         
-        // Reinicia as barreiras (com algum dano para aumentar a dificuldade)
-        barriers = [];
-        
         // Constante para o tamanho do header
         const headerHeight = 42;
         
         // Configurações específicas do nível 2
         if (currentLevel === 2) {
-            // Velocidade inicial 25% maior que a fase 1
+            // Velocidade 25% maior que a fase 1
             moveInterval = 375;  // 500 * 0.75 = 375
             invaderShootInterval = 560; // 750 * 0.75 = 562.5
+            
+            // NÃO restaura as barreiras (mantém as danificadas da fase 1)
+            // O código de criação de barreiras foi removido daqui
             
             // Cria novos invasores com padrão diferente (formação em W)
             const rows = 5;
@@ -1286,24 +1314,9 @@ function startNextLevel() {
                     const x = col * spacingX + 35;
                     const y = row * spacingY + 70 + headerHeight + offsetY;
                     
-                    // O último parâmetro (projectileSpeed) aumenta ligeiramente de 3 para 4
+                    // Velocidade de projétil ligeiramente mais alta na fase 2
                     invaders.push(new Invader(x, y, 30, 30, true, 4)); 
                 }
-            }
-            
-            // Cria novas barreiras, mais frágeis
-            const numBarriers = 4;
-            for (let i = 0; i < numBarriers; i++) {
-                const x = 50 + i * 150;
-                const y = canvas.height - 150 + headerHeight / 2;
-                barriers.push(new Barrier(x, y));
-                
-                // Danifica algumas partes das barreiras aleatoriamente
-                barriers[i].bricks.forEach(brick => {
-                    if (Math.random() < 0.3) { // 30% de chance de danificar
-                        brick.health = 0;
-                    }
-                });
             }
             
             // Reposiciona o jogador
@@ -1312,10 +1325,53 @@ function startNextLevel() {
             // Reseta outros estados
             invaderDirection = 1;
             moveAccumulator = 0;
-            
-            // Não reinicia a pontuação - é cumulativa entre níveis
-            // Não reinicia as vidas - são mantidas entre níveis
         }
+
+        // Configurações específicas do nível 3 (NOVO)
+        else if (currentLevel === 3) {
+            // Velocidade 25% maior que a fase 2
+            moveInterval = 280;  // 375 * 0.75 = 281.25
+            // Mantém a mesma velocidade de tiro da fase 2
+            invaderShootInterval = 560; // Igual à fase 2
+
+            // NÃO restaura as barreiras (mantém as danificadas das fases anteriores)
+
+            // Cria novos invasores com padrão de diamante para a fase final
+            const rows = 5;
+            const cols = 11;
+            const spacingX = 45;
+            const spacingY = 33;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    // Formação de diamante para o nível 3
+                    let offsetY = 0;
+                    const middleCol = Math.floor(cols / 2);
+                    const distFromMiddle = Math.abs(col - middleCol);
+
+                    if (row < 3) {
+                        // Parte superior do diamante - desce à medida que se afasta do centro
+                        offsetY = distFromMiddle * 15;
+                    } else {
+                        // Parte inferior do diamante - sobe à medida que se afasta do centro
+                        offsetY = (5 - distFromMiddle) * 15;
+                    }
+
+                    const x = col * spacingX + 35;
+                    const y = row * spacingY + 70 + headerHeight + offsetY;
+
+                    // Mantém a mesma velocidade de projétil da fase 2
+                    invaders.push(new Invader(x, y, 30, 30, true, 4));
+                }
+            }
+
+            // Reposiciona o jogador
+            player.x = canvas.width / 2 - player.width / 2;
+
+            // Reseta outros estados
+            invaderDirection = 1;
+            moveAccumulator = 0;
+        }        
     } catch (e) {
         console.error("Erro ao iniciar próximo nível:", e);
     }
