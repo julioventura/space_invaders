@@ -65,6 +65,13 @@ let countdownActive = false;
 let countdownValue = 3;
 let countdownTimer = 0;
 
+// Adicione estas variáveis globais após as outras variáveis no topo do arquivo
+let currentLevel = 1;
+let maxLevel = 2;
+let levelTransitionActive = false;
+let levelTransitionTimer = 0;
+let levelTransitionDuration = 3000; // 3 segundos de transição entre fases
+
 function gameLoop(timestamp) {
     // Calcula o tempo decorrido desde o último frame
     const deltaTime = timestamp - lastFrameTime;
@@ -225,7 +232,7 @@ function renderStartScreen() {
     ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Versão 1.01 (13/04/2025)", canvas.width / 2, canvas.height - 20);
+    ctx.fillText("Versão 1.02 (13/04/2025)", canvas.width / 2, canvas.height - 20);
 }
 
 // Remova o event listener de clique e use apenas a tecla espaço
@@ -522,13 +529,36 @@ function update(deltaTime) {
             player.resetShot();
         }
 
+        // Substitua o bloco de verificação de vitória atual:
         // Verificar vitória
         const remainingInvaders = invaders.filter(invader => invader.alive).length;
-        if (remainingInvaders === 0 && !gameWon) {
-            gameWon = true;
+        if (remainingInvaders === 0 && !gameWon && !levelTransitionActive) {
+            if (currentLevel < maxLevel) {
+                // Iniciar transição para o próximo nível
+                levelTransitionActive = true;
+                levelTransitionTimer = 0;
+                
+                // Tocar o som de vitória do nível
+                if (soundManager) soundManager.playVictorySound();
+            } else {
+                // Vitória final - todos os níveis concluídos
+                gameWon = true;
+                
+                // Tocar o som de vitória
+                if (soundManager) soundManager.playVictorySound();
+            }
+        }
 
-            // Tocar o som de vitória
-            if (soundManager) soundManager.playVictorySound();
+        // Processar transição de nível, se ativa
+        if (levelTransitionActive) {
+            levelTransitionTimer += deltaTime;
+            
+            if (levelTransitionTimer >= levelTransitionDuration) {
+                // Termina a transição e inicia o próximo nível
+                levelTransitionActive = false;
+                currentLevel++;
+                startNextLevel();
+            }
         }
 
         // OPCIONAL: Tiros dos invasores
@@ -545,7 +575,7 @@ function update(deltaTime) {
                 const projectile = new Projectile(
                     shooter.x + (shooter.width / 2) - 2,
                     shooter.y + shooter.height,
-                    4, 5, 5, -1, "#f00" // Velocidade (5)
+                    4, 5, 3, -1, "#f00" // Velocidade reduzida de 5 para 3
                 );
                 invaderProjectiles.push(projectile);
             }
@@ -682,6 +712,12 @@ function renderHeader() {
     ctx.fillStyle = "rgba(255, 165, 0, 0.3)";
     ctx.fillText(`PONTUAÇÃO: ${score}`, canvas.width / 2, 27);
 
+    // Fase atual
+    ctx.textAlign = "left";
+    ctx.font = "bold 18px Arial";
+    ctx.fillStyle = "#0FF";
+    ctx.fillText(`FASE: ${currentLevel}/${maxLevel}`, canvas.width * 3 / 4, 25);
+
     // Lado direito - Contador de invasores com ícone
     ctx.textAlign = "right";
     ctx.font = "bold 18px Arial";
@@ -765,6 +801,39 @@ function render() {
 
         // Substituir a parte do header
         renderHeader();
+
+        // Renderiza a transição entre níveis, se ativa
+        if (levelTransitionActive) {
+            // Esmaece toda a tela para exibir as mensagens
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Texto da fase concluída
+            ctx.fillStyle = "#fff";
+            ctx.font = "36px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`FASE ${currentLevel} CONCLUÍDA!`, canvas.width / 2, canvas.height / 3);
+            
+            // Texto da próxima fase
+            ctx.font = "30px Arial";
+            ctx.fillText(`PREPARANDO FASE ${currentLevel + 1}...`, canvas.width / 2, canvas.height / 2);
+            
+            // Barra de progresso da transição
+            const progressWidth = 300;
+            const progressHeight = 20;
+            const progressX = (canvas.width - progressWidth) / 2;
+            const progressY = canvas.height / 2 + 50;
+            
+            // Borda da barra de progresso
+            ctx.strokeStyle = "#0F0";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(progressX, progressY, progressWidth, progressHeight);
+            
+            // Preenchimento da barra de progresso
+            const progress = Math.min(levelTransitionTimer / levelTransitionDuration, 1);
+            ctx.fillStyle = "#0F0";
+            ctx.fillRect(progressX, progressY, progressWidth * progress, progressHeight);
+        }
 
         // Mostrar mensagem de pausa quando o jogo estiver pausado
         if (isPaused) {
@@ -1101,6 +1170,10 @@ function resetGame() {
         // Reinicia a flag que controla o processamento dos recordes
         window.highScoreProcessed = false;
         
+        // Reinicia o nível atual
+        currentLevel = 1;
+        levelTransitionActive = false;
+        
         moveInterval = 500;
         invaderShootInterval = 750;
 
@@ -1162,6 +1235,107 @@ function cleanupInactiveObjects() {
         playerProjectiles = [];
         invaderProjectiles = [];
     }
+}
+
+// Adicione esta função para iniciar o próximo nível
+function startNextLevel() {
+    try {
+        // Limpa os projéteis da fase anterior
+        playerProjectiles = [];
+        invaderProjectiles = [];
+        
+        // Reinicia os invasores para a nova fase
+        invaders = [];
+        
+        // Reinicia as barreiras (com algum dano para aumentar a dificuldade)
+        barriers = [];
+        
+        // Constante para o tamanho do header
+        const headerHeight = 42;
+        
+        // Configurações específicas do nível 2
+        if (currentLevel === 2) {
+            // Velocidade inicial 25% maior que a fase 1
+            moveInterval = 375;  // 500 * 0.75 = 375
+            invaderShootInterval = 560; // 750 * 0.75 = 562.5
+            
+            // Cria novos invasores com padrão diferente (formação em W)
+            const rows = 5;
+            const cols = 11;
+            const spacingX = 45;
+            const spacingY = 33;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    // Formação em W para o nível 2
+                    let offsetY = 0;
+                    if (col === 0 || col === 10) {
+                        offsetY = 0;
+                    } else if (col === 1 || col === 9) {
+                        offsetY = 15;
+                    } else if (col === 2 || col === 8) {
+                        offsetY = 30;
+                    } else if (col === 3 || col === 7) {
+                        offsetY = 15;
+                    } else if (col === 4 || col === 6) {
+                        offsetY = 0;
+                    } else {
+                        offsetY = 15;
+                    }
+                    
+                    const x = col * spacingX + 35;
+                    const y = row * spacingY + 70 + headerHeight + offsetY;
+                    
+                    // O último parâmetro (projectileSpeed) aumenta ligeiramente de 3 para 4
+                    invaders.push(new Invader(x, y, 30, 30, true, 4)); 
+                }
+            }
+            
+            // Cria novas barreiras, mais frágeis
+            const numBarriers = 4;
+            for (let i = 0; i < numBarriers; i++) {
+                const x = 50 + i * 150;
+                const y = canvas.height - 150 + headerHeight / 2;
+                barriers.push(new Barrier(x, y));
+                
+                // Danifica algumas partes das barreiras aleatoriamente
+                barriers[i].bricks.forEach(brick => {
+                    if (Math.random() < 0.3) { // 30% de chance de danificar
+                        brick.health = 0;
+                    }
+                });
+            }
+            
+            // Reposiciona o jogador
+            player.x = canvas.width / 2 - player.width / 2;
+            
+            // Reseta outros estados
+            invaderDirection = 1;
+            moveAccumulator = 0;
+            
+            // Não reinicia a pontuação - é cumulativa entre níveis
+            // Não reinicia as vidas - são mantidas entre níveis
+        }
+    } catch (e) {
+        console.error("Erro ao iniciar próximo nível:", e);
+    }
+}
+
+// Modifique a criação de projéteis do jogador na classe Player (linha ~235-250):
+
+// Se o jogador está atirando e não existe um projétil ativo, criar um novo
+if (this.shooting && playerProjectiles.length < this.maxProjectiles) {
+    // Criar um novo projétil
+    const projectile = new Projectile(
+        this.x + (this.width / 2) - 2,
+        this.y - 10,
+        4, 10, 3, 1, "#fff" // Velocidade reduzida de 5 para 3
+    );
+    playerProjectiles.push(projectile);
+    this.totalShotsFired++;
+    
+    // Toca som de tiro
+    if (soundManager) soundManager.playPlayerShootSound();
 }
 
 // Inicia o jogo quando a página for carregada
