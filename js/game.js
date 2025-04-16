@@ -115,10 +115,15 @@ function init() {
             }
         }
 
-        // Criação de 4 barreiras
+        // MODIFICADO: Criação de 4 barreiras centralizadas
         const numBarriers = 4;
+        const barrierWidth = 60; // Largura aproximada de cada barreira
+        const barreirSpacing = 50; // Espaço entre barreiras
+        const totalBarriersWidth = (numBarriers * barrierWidth) + ((numBarriers - 1) * barreirSpacing);
+        const startX = (canvas.width - totalBarriersWidth) / 2;
+        
         for (let i = 0; i < numBarriers; i++) {
-            const x = 50 + i * 150;
+            const x = startX + (i * (barrierWidth + barreirSpacing));
             const y = canvas.height - 150 + headerHeight / 2;
             barriers.push(new Barrier(x, y));
         }
@@ -541,6 +546,9 @@ function update(deltaTime) {
                 // Incrementa contador de tiros perdidos
                 missedShots++;
                 
+                // NOVO: Subtrai pontos por tiros perdidos durante o jogo
+                score -= 1;
+                
                 // Toca som de acerto na linha de topo
                 if (soundManager) {
                     soundManager.playTopLineHitSound();
@@ -748,7 +756,7 @@ function renderHeader() {
     ctx.fillStyle = "#0FF";
     ctx.fillText(`FASE: ${currentLevel}/${maxLevel}`, canvas.width * 3 / 4, 25);
 
-    // Lado direito - Contador de invasores com ícone
+    // Lado direito - Contador de invasores (MODIFICADO: Removido o ícone do invasor)
     ctx.textAlign = "right";
     ctx.font = "bold 18px Arial";
     const totalInvaders = invaders.length;
@@ -763,10 +771,6 @@ function renderHeader() {
     textGradient.addColorStop(0, "#FF3");
     textGradient.addColorStop(1, "#F60");
     ctx.fillStyle = textGradient;
-
-    // Desenha um pequeno invasor como ícone
-    ctx.fillRect(canvas.width - 105, 15, 10, 5);
-    ctx.fillRect(canvas.width - 108, 20, 16, 5);
 
     // Texto do contador
     ctx.fillText(totalInvadersText, canvas.width - 20, 25);
@@ -1096,11 +1100,15 @@ function updateFinalReport() {
         let highScores = JSON.parse(localStorage.getItem("highScores")) || [];
         
         // Cálculo dos valores do relatório de pontuação:
-        const eliminated = invaders.filter(invader => !invader.alive).length;
-        const pointsEliminated = eliminated * 2;
+        // CORRIGIDO: Agora usa a pontuação atual (score) que já contém todos os acúmulos
+        // e não recalcula apenas os invasores da fase atual
+        const pointsEliminated = score + missedShots + (lostLivesCount * 10);
         const pointsMissed = missedShots * 1;
         const pointsLost = lostLivesCount * 10;
-        const totalPoints = pointsEliminated - pointsMissed - pointsLost;
+        const totalPoints = score; // A pontuação atual já reflete todos os cálculos
+        
+        // Para o relatório, calculamos o número de eliminados com base na pontuação
+        const estimatedEliminated = Math.round(pointsEliminated / 2);
         
         // Cria um container com display:flex para as duas colunas
         let html = `
@@ -1153,7 +1161,7 @@ function updateFinalReport() {
                         <tbody>
                             <tr>
                                 <td style="padding: 6px; text-align:left;">Eliminados</td>
-                                <td style="padding: 6px; text-align:center;">${eliminated}</td>
+                                <td style="padding: 6px; text-align:center;">${estimatedEliminated}</td>
                                 <td style="padding: 6px; text-align:center;">2</td>
                                 <td style="padding: 6px; text-align:center;">${pointsEliminated}</td>
                             </tr>
@@ -1194,35 +1202,50 @@ function updateFinalReport() {
     }
 }
 
-// Função para reiniciar o jogo
+// Função para reiniciar o jogo - CORRIGIDA
 function resetGame() {
     try {
         // Reinicia a flag que controla o processamento dos recordes
         window.highScoreProcessed = false;
         
-        // Reinicia o nível atual
+        // Reinicializa TODOS os parâmetros de jogo com valores padrão
         currentLevel = 1;
         levelTransitionActive = false;
         
-        moveInterval = 500;
+        // Restaura as velocidades iniciais do jogo
+        moveInterval = 500;  // Velocidade inicial dos invasores
         invaderShootInterval = 750;
-
+        
+        // Limpa todos os objetos de jogo
         player = null;
         invaders = [];
         barriers = [];
         playerProjectiles = [];
         invaderProjectiles = [];
+        
+        // Reinicia estados de jogo
         gameOver = false;
         gameWon = false;
         invaderDirection = 1;
         moveAccumulator = 0;
+        gameStarted = false;
 
         // Reset das variáveis de pontuação
-        score = 0;               // Pontuação inicial zerada
-        lostLivesCount = 0;      // Reset contador de vidas perdidas
-        missedShots = 0;         // Reset contador de tiros perdidos
+        score = 0;
+        lostLivesCount = 0;
+        missedShots = 0;
 
-        init(); // Reinicia o jogo e mostra tela inicial
+        // Limpa a flag preventVictoryCheck se estiver definida
+        window.preventVictoryCheck = false;
+
+        // Reinicia o sistema de som (se existir)
+        if (soundManager) {
+            soundManager.invaderSoundSpeed = 1.0; // Reinicia velocidade do som
+            soundManager.stepModulo = 2; // Reinicia frequência do som
+        }
+
+        // Recria todos os elementos do jogo
+        init();
 
         // Redefine as variáveis de desempenho
         gamePerformance = {
@@ -1235,11 +1258,18 @@ function resetGame() {
         // Mostra a tela inicial novamente
         renderStartScreen();
 
-        // Garante que o jogador tenha as configurações corretas
+        // Garante que o jogador tenha as configurações iniciais corretas
         if (player) {
             player.lives = 3;
             player.maxProjectiles = 3;
             player.totalShotsFired = 0;
+            player.speed = 8; // Garante que a velocidade do jogador está correta
+        }
+        
+        // Limpa também a tabela de pontuação final
+        const tableDiv = document.getElementById("highscore-table");
+        if (tableDiv) {
+            tableDiv.innerHTML = "";
         }
     } catch (e) {
         console.error("Erro ao reiniciar o jogo:", e);
@@ -1297,8 +1327,13 @@ function startNextLevel() {
         // NOVA FUNCIONALIDADE: Restaura as barreiras ao iniciar uma nova fase
         barriers = []; // Remove as barreiras danificadas
         const numBarriers = 4;
+        const barrierWidth = 60; // Largura aproximada de cada barreira
+        const barreirSpacing = 50; // Espaço entre barreiras
+        const totalBarriersWidth = (numBarriers * barrierWidth) + ((numBarriers - 1) * barreirSpacing);
+        const startX = (canvas.width - totalBarriersWidth) / 2;
+
         for (let i = 0; i < numBarriers; i++) {
-            const x = 50 + i * 150;
+            const x = startX + (i * (barrierWidth + barreirSpacing));
             const y = canvas.height - 150 + headerHeight / 2;
             barriers.push(new Barrier(x, y)); // Cria novas barreiras
         }
