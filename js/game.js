@@ -557,9 +557,12 @@ function update(deltaTime) {
         }
 
         // Substitua o bloco de verificação de vitória atual:
-        // Verificar vitória
+        // Verificar vitória - MODIFICADO para incluir verificação de preventVictoryCheck
         const remainingInvaders = invaders.filter(invader => invader.alive).length;
-        if (remainingInvaders === 0 && !gameWon && !levelTransitionActive) {
+        
+        if (remainingInvaders === 0 && !gameWon && !levelTransitionActive && !window.preventVictoryCheck) {
+            console.log("Fase completada! Invasores restantes: " + remainingInvaders);
+            
             if (currentLevel < maxLevel) {
                 // Iniciar transição para o próximo nível
                 levelTransitionActive = true;
@@ -1278,14 +1281,33 @@ function startNextLevel() {
         // Constante para o tamanho do header
         const headerHeight = 42;
         
+        // NOVA FUNCIONALIDADE: Ganhe uma vida ao iniciar uma nova fase
+        const maxLives = 5; // Define um máximo de vidas para balancear o jogo
+        if (player.lives < maxLives) {
+            player.lives++;
+            // Atualiza o número máximo de tiros com base nas vidas
+            player.maxProjectiles = player.lives;
+            
+            // Efeito visual ou sonoro de vida extra
+            if (soundManager) {
+                soundManager.playVictorySound(); // Som mais distintivo para ganhar vida
+            }
+        }
+        
+        // NOVA FUNCIONALIDADE: Restaura as barreiras ao iniciar uma nova fase
+        barriers = []; // Remove as barreiras danificadas
+        const numBarriers = 4;
+        for (let i = 0; i < numBarriers; i++) {
+            const x = 50 + i * 150;
+            const y = canvas.height - 150 + headerHeight / 2;
+            barriers.push(new Barrier(x, y)); // Cria novas barreiras
+        }
+        
         // Configurações específicas do nível 2
         if (currentLevel === 2) {
             // Velocidade 25% maior que a fase 1
             moveInterval = 375;  // 500 * 0.75 = 375
             invaderShootInterval = 560; // 750 * 0.75 = 562.5
-            
-            // NÃO restaura as barreiras (mantém as danificadas da fase 1)
-            // O código de criação de barreiras foi removido daqui
             
             // Cria novos invasores com padrão diferente (formação em W)
             const rows = 5;
@@ -1314,8 +1336,10 @@ function startNextLevel() {
                     const x = col * spacingX + 35;
                     const y = row * spacingY + 70 + headerHeight + offsetY;
                     
-                    // Velocidade de projétil ligeiramente mais alta na fase 2
-                    invaders.push(new Invader(x, y, 30, 30, true, 4)); 
+                    // CORREÇÃO: Garantindo que todos os invasores começam vivos
+                    const invader = new Invader(x, y, 30, 30, true, 4);
+                    invader.alive = true; // Explicitamente marcando como vivo
+                    invaders.push(invader);
                 }
             }
             
@@ -1332,9 +1356,7 @@ function startNextLevel() {
             // Velocidade 25% maior que a fase 2
             moveInterval = 280;  // 375 * 0.75 = 281.25
             // Mantém a mesma velocidade de tiro da fase 2
-            invaderShootInterval = 560; // Igual à fase 2
-
-            // NÃO restaura as barreiras (mantém as danificadas das fases anteriores)
+            invaderShootInterval = 560;
 
             // Cria novos invasores com padrão de diamante para a fase final
             const rows = 5;
@@ -1360,8 +1382,10 @@ function startNextLevel() {
                     const x = col * spacingX + 35;
                     const y = row * spacingY + 70 + headerHeight + offsetY;
 
-                    // Mantém a mesma velocidade de projétil da fase 2
-                    invaders.push(new Invader(x, y, 30, 30, true, 4));
+                    // CORREÇÃO: Garantindo que todos os invasores começam vivos
+                    const invader = new Invader(x, y, 30, 30, true, 4);
+                    invader.alive = true; // Explicitamente marcando como vivo
+                    invaders.push(invader);
                 }
             }
 
@@ -1371,7 +1395,17 @@ function startNextLevel() {
             // Reseta outros estados
             invaderDirection = 1;
             moveAccumulator = 0;
-        }        
+        }
+
+        // CORREÇÃO: Verificação adicional após criar os invasores
+        console.log(`Fase ${currentLevel}: ${invaders.length} invasores criados, ${invaders.filter(i => i.alive).length} vivos`);
+        
+        // Flag temporária para evitar verificação de vitória imediata
+        window.preventVictoryCheck = true;
+        setTimeout(() => {
+            window.preventVictoryCheck = false;
+        }, 500); // Espera 500ms antes de permitir verificações de vitória
+        
     } catch (e) {
         console.error("Erro ao iniciar próximo nível:", e);
     }

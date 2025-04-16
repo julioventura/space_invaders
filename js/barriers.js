@@ -6,11 +6,15 @@
 
 /* Classe que representa um único tijolo */
 class Brick {
+    // Definindo dimensões como propriedades estáticas da classe
+    static WIDTH = 15;
+    static HEIGHT = 10;
+
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.width = 15;    // Dimensões do tijolo
-        this.height = 10;
+        this.width = Brick.WIDTH;   // Usando as propriedades estáticas
+        this.height = Brick.HEIGHT;
         this.health = 1;    // Número de impactos para destruir o tijolo
     }
 
@@ -30,14 +34,18 @@ class Brick {
 class Barrier {
     constructor(x, y) {
         this.bricks = [];
-        // Changed: 3 rows x 5 columns, totalizing 15 bricks per barrier
-        const rows = 3;
+        
+        // 4 rows x 5 columns, totalizing 20 bricks per barrier
+        const rows = 4;
         const cols = 5;
-        const brickWidth = 15;
-        const brickHeight = 10;
+        
+        // Usa as dimensões definidas na classe Brick
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < cols; j++) {
-                this.bricks.push(new Brick(x + j * brickWidth, y + i * brickHeight));
+                this.bricks.push(new Brick(
+                    x + j * Brick.WIDTH, 
+                    y + i * Brick.HEIGHT
+                ));
             }
         }
     }
@@ -46,7 +54,3 @@ class Barrier {
         this.bricks.forEach(brick => brick.render(ctx));
     }
 }
-
-// Se desejar tornar Barrier e Brick acessíveis globalmente:
-// window.Barrier = Barrier;
-// window.Brick = Brick;
