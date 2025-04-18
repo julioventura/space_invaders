@@ -105,20 +105,20 @@ function init() {
         // Criação da formação de invasores
         const rows = 5;
         const cols = 11; 
-        const spacingX = 45; // Ajustado para melhor distribuição
+        const spacingX = 45;
         const spacingY = 33;
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
-                const x = col * spacingX + 35; // Ajuste para centralizar
+                const x = col * spacingX + 35;
                 const y = row * spacingY + 70 + headerHeight;
                 invaders.push(new Invader(x, y));
             }
         }
 
-        // MODIFICADO: Criação de 4 barreiras centralizadas
+        // MODIFICADO: Criação de 4 barreiras com espaçamento DOBRADO
         const numBarriers = 4;
         const barrierWidth = 60; // Largura aproximada de cada barreira
-        const barreirSpacing = 50; // Espaço entre barreiras
+        const barreirSpacing = 100; // DOBRADO de 50 para 100
         const totalBarriersWidth = (numBarriers * barrierWidth) + ((numBarriers - 1) * barreirSpacing);
         const startX = (canvas.width - totalBarriersWidth) / 2;
         
@@ -131,6 +131,10 @@ function init() {
         // Mostra a tela inicial em vez de começar o jogo diretamente
         renderStartScreen();
 
+        // Define a velocidade base dos projéteis no início
+        window.projectileSpeed = 3;
+        window.invaderProjectileSpeed = 3;
+        
         // O jogo só começa quando o jogador clicar na tela
         gameStarted = false;
 
@@ -1179,10 +1183,6 @@ function updateFinalReport() {
                             </tr>
                             <tr>
                                 <td colspan="3" style="padding: 6px; text-align: right; border-top: 1px solid #00FF00;"><strong>PONTOS TOTAIS:</strong></td>
-                                <td style="padding: 6px; text-align:center; border-top: 1px solid #00FF00;"><strong>${totalPoints}</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>`;
         
@@ -1215,6 +1215,11 @@ function resetGame() {
         // Restaura as velocidades iniciais do jogo
         moveInterval = 500;  // Velocidade inicial dos invasores
         invaderShootInterval = 750;
+        
+        // IMPORTANTE: Define uma variável global para garantir velocidade consistente dos projéteis
+        // Isso garante que a velocidade dos projéteis será a mesma do início original do jogo
+        window.projectileSpeed = 3;  // Velocidade base dos projéteis do jogador
+        window.invaderProjectileSpeed = 3;  // Velocidade base dos projéteis dos invasores
         
         // Limpa todos os objetos de jogo
         player = null;
@@ -1263,7 +1268,7 @@ function resetGame() {
             player.lives = 3;
             player.maxProjectiles = 3;
             player.totalShotsFired = 0;
-            player.speed = 8; // Garante que a velocidade do jogador está correta
+            player.speed = 8;
         }
         
         // Limpa também a tabela de pontuação final
