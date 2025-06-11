@@ -79,43 +79,6 @@ O projeto é uma réplica simplificada do clássico Space Invaders dos anos 80. 
   - O jogador vence se destruir todos os invasores.
   - O jogo termina (derrota) se um invasor atingir a linha do jogador ou se um tiro inimigo atingir o jogador (implementação futura para tiros dos invasores).
 
-## 4. Próximos Passos para a Implementação
-
-### Passo 1: Teste do Game Loop e Renderização
-- Verifique se, ao carregar a página, o canvas exibe corretamente:
-  - O jogador (se movendo para os lados com as teclas).
-  - As quatro barreiras.
-  - A formação dos invasores (mesmo que estática inicialmente).
-- Certifique-se de que o background esteja preto conforme especificado em `css/style.css`.
-
-### Passo 2: Implementação da Lógica dos Invasores
-- **Movimentação Discreta:**  
-  - No arquivo `js/game.js`, implemente um acumulador de tempo (`moveAccumulator`).
-  - A cada 1 segundo (1000 ms), execute um "passo":
-    - Calcule a posição mínima e máxima (leftmost e rightmost) dos invasores vivos.
-    - Se o invasor mais à direita, somado a 10 pixels, ultrapassar o limite direito do canvas, faça:
-      - Descer toda a formação 10 pixels.
-      - Inverter a direção para o movimento (mudar `invaderDirection` de 1 para -1).
-    - Se o movimento para a esquerda ultrapassar o limite, execute o mesmo processo (descendo e invertendo).
-    - Caso contrário, mova todos os invasores horizontalmente 10 pixels na direção atual.
-  
-### Passo 3: Implementação do Sistema de Tiros do Jogador
-- Modifique o método `shoot()` na classe Player (em `js/player.js`) para que:
-  - Ao pressionar a tecla espaço, seja criado um objeto Tiro (implementado ou a ser implementado).
-  - O tiro se movimenta para cima a cada atualização do game loop.
-  - O tiro deve ser removido quando sair do canvas ou ao ocorrer colisão com um invasor ou um tijolo da barreira.
-
-### Passo 4: Implementação e Integração da Detecção de Colisões
-- Utilize a função `isColliding()` (em `js/utils.js`) para:
-  - Detectar colisões entre os tiros do jogador e os invasores.
-  - Detectar colisões entre os tiros e os tijolos das barreiras.
-- Remova ou marque como destruídos os invasores e tijolos atingidos.
-
-### Passo 5 (Opcional): Implementar a Lógica para Tiros dos Invasores
-- Após concluir o sistema de tiro do jogador e a movimentação dos invasores, implemente a lógica para que os invasores também possam disparar tiros descendentes.
-- Verifique colisões dos tiros inimigos com o jogador.
-
-
 ## Conclusão
 
 Este documento serve como um mapa completo para o desenvolvimento do clone do Space Invaders:
@@ -125,6 +88,3 @@ Este documento serve como um mapa completo para o desenvolvimento do clone do Sp
   
 - **Regras de Funcionamento:**  
   Estabelece como os elementos se movem (1 passo/segundo, verificação de bordas, inversão de direção e descida) e os comportamentos do jogador e das barreiras.
-  
-- **Próximos Passos:**  
-  Desde testar o game loop e a renderização até implementar a lógica de movimento dos invasores e o sistema de tiros com detecção de colisões.
