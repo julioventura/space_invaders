@@ -1,5 +1,9 @@
 # Resumo do Projeto: Space Invaders Clone
 
+## Versão 1.02 de 13/04/2025
+
+**LIVE:** <https://dentistas.com.br/spaceinvaders/>
+
 ## 1. Visão Geral do Jogo
 
 O projeto é uma réplica simplificada do clássico Space Invaders dos anos 80. O jogo consiste em uma única tela (canvas) com um cenário dividido em diferentes zonas:
@@ -112,7 +116,7 @@ O projeto é uma réplica simplificada do clássico Space Invaders dos anos 80. 
 - Verifique colisões dos tiros inimigos com o jogador.
 
 
-# Conclusão
+## Conclusão
 
 Este documento serve como um mapa completo para o desenvolvimento do clone do Space Invaders:
 
@@ -124,6 +128,3 @@ Este documento serve como um mapa completo para o desenvolvimento do clone do Sp
   
 - **Próximos Passos:**  
   Desde testar o game loop e a renderização até implementar a lógica de movimento dos invasores e o sistema de tiros com detecção de colisões.
-
-
-  
